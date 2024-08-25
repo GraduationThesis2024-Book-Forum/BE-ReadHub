@@ -1,18 +1,15 @@
 services:
   mysql_db:
-    image: mysql:8.0
+    image: mysql:latest
     container_name: mysql-container
     restart: unless-stopped
     env_file: ./.env
     environment:
-      - MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
-      - MYSQL_DATABASE=$MYSQL_DATABASE
-      - MYSQL_USER=$MYSQL_USER
-      - MYSQL_PASSWORD=$MYSQL_PASSWORD
+      MYSQL_ROOT_PASSWORD: $MYSQL_ROOT_PASSWORD
     ports:
-      - $MYSQL_LOCAL_PORT:$MYSQL_DOCKER_PORT
-    volumes:
-      - mysql_data:/var/lib/mysql
+      - "$MYSQL_LOCAL_PORT:$MYSQL_DOCKER_PORT"
+
+
 
   app:
     depends_on:
