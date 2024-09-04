@@ -1,5 +1,5 @@
 package com.iuh.fit.readhub.models;
 
-enum UserRole {
-    Admin, User, Guest
+public enum UserRole {
+    ADMIN, USER, GUEST
 }
