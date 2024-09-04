@@ -22,7 +22,7 @@ public class AuthenController {
 
         if (response.isSuccess()) {
             return new ResponseEntity<>(response, HttpStatus.OK);
-        } else if (response.getMessage().equals("Email đã được đăng ký")) {
+        } else if (response.getMessage().equals("email.already.exists")) {
             return new ResponseEntity<>(response, HttpStatus.CONFLICT);
         } else {
             return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);

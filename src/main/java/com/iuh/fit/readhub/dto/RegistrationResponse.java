@@ -3,10 +3,12 @@ package com.iuh.fit.readhub.dto;
 public class RegistrationResponse {
     private boolean success;
     private String message;
+    private String token;
 
-    public RegistrationResponse(boolean success, String message) {
+    public RegistrationResponse(boolean success, String message, String token) {
         this.success = success;
         this.message = message;
+        this.token = token;
     }
 
     public boolean isSuccess() {
@@ -23,5 +25,13 @@ public class RegistrationResponse {
 
     public void setMessage(String message) {
         this.message = message;
+    }
+
+    public String getToken() {
+        return token;
+    }
+
+    public void setToken(String token) {
+        this.token = token;
     }
 }
