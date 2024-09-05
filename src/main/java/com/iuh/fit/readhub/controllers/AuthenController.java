@@ -28,4 +28,14 @@ public class AuthenController {
             return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         }
     }
+
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestParam String email, @RequestParam String password) {
+        String token = authService.login(email, password);
+        if (token != null) {
+            return ResponseEntity.ok(new RegistrationResponse(true, "Đăng nhập thành công", token));
+        } else {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new RegistrationResponse(false, "Email hoặc mật khẩu không đúng", null));
+        }
+    }
 }
