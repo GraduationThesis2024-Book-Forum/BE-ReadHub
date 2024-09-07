@@ -32,6 +32,9 @@ public class AuthenService {
         if (userRepository.existsByEmail(email)) {
             return new RegistrationResponse(false, ValidationMessages.EMAIL_ALREADY_EXISTS.getMessage(), null);
         }
+        if(userRepository.existsByUsername(username)){
+            return new RegistrationResponse(false, ValidationMessages.USERNAME_ALREADY_EXISTS.getMessage(), null);
+        }
 
         if (!Pattern.matches(ValidationConstants.EMAIL_REGEX, email)) {
             return new RegistrationResponse(false, ValidationMessages.EMAIL_INVALID.getMessage(), null);
@@ -54,20 +57,16 @@ public class AuthenService {
         newUser.setCreatedAt(LocalDateTime.now());
 
         userRepository.save(newUser);
-
         String token = jwtUtil.generateToken(username);
 
         return new RegistrationResponse(true, ValidationMessages.REGISTER_SUCCESS.getMessage(),token);
     }
 
     public String login(String email, String password) {
-        // Kiểm tra email có tồn tại không
         Optional<User> user = userRepository.findByEmail(email);
         if (user.isPresent() && passwordEncoder.matches(password, user.get().getPassword())) {
-            // Nếu đúng email và mật khẩu, tạo token JWT
             return jwtUtil.generateToken(user.get().getUsername());
         }
-        // Trả về null nếu thông tin đăng nhập không đúng
         return null;
     }
 
