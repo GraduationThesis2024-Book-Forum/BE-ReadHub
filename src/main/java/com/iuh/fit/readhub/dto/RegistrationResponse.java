@@ -1,5 +1,8 @@
 package com.iuh.fit.readhub.dto;
 
+import lombok.ToString;
+
+@ToString
 public class RegistrationResponse {
     private boolean success;
     private String message;
