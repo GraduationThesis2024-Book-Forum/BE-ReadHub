@@ -1,5 +1,8 @@
 package com.iuh.fit.readhub.constants;
 
+import lombok.Getter;
+
+@Getter
 public enum ValidationMessages {
     EMAIL_ALREADY_EXISTS("Email đã được đăng ký"),
     EMAIL_INVALID("Email không hợp lệ"),
@@ -17,7 +20,4 @@ public enum ValidationMessages {
         this.message = message;
     }
 
-    public String getMessage() {
-        return message;
-    }
 }

@@ -40,10 +40,12 @@ public class AuthenController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<RegistrationResponse> registerAndVerify(@RequestParam String email,
-                                                                  @RequestParam String username,
-                                                                  @RequestParam String password,
-                                                                  @RequestParam(required = false) String otp) {
+    public ResponseEntity<RegistrationResponse> registerAndVerify(
+            @RequestParam String email,
+            @RequestParam String username,
+            @RequestParam String password,
+            @RequestParam(required = false) String otp
+    ) {
 
         if (otp != null && !otp.isEmpty()) {
             boolean isOtpValid = otpService.validateOtp(otp, email);
