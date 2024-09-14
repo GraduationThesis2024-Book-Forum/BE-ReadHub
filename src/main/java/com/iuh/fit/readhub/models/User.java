@@ -29,6 +29,9 @@ public class User {
     @Column(unique = true, nullable = false)
     private String email;
 
+    @Column(name = "url_avatar",nullable = true)
+    private String urlAvatar;
+
     @Enumerated(EnumType.STRING)
     private UserRole role;
 
