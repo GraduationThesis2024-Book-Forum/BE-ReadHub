@@ -7,6 +7,7 @@ import com.iuh.fit.readhub.models.OTP;
 import com.iuh.fit.readhub.services.AuthenService;
 import com.iuh.fit.readhub.services.EmailService;
 import com.iuh.fit.readhub.services.OtpService;
+import jakarta.mail.MessagingException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,15 +29,18 @@ public class AuthenController {
     private EmailService emailService;
 
     @PostMapping("/send-otp")
-    public ResponseEntity<?> registerUser(@RequestParam String email) {
-        try {
+    public ResponseEntity<RegistrationResponse> registerUser(
+            @RequestParam String email,
+            @RequestParam String username
+    ) throws MessagingException {
+            RegistrationResponse registrationResponse = authService.sendOTPToRegister(email, username);
+            if (!registrationResponse.isSuccess()) {
+                return new ResponseEntity<>(registrationResponse, HttpStatus.CONFLICT);
+            }
             OTP otp = otpService.generateOtp(email);
             emailService.sendOtpEmail(email, otp.getOtp());
-            return ResponseEntity.ok("OTP sent successfully. \n"+otp.getOtp());
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to send OTP: " + e.getMessage());
-        }
+            registrationResponse.setMessage(registrationResponse.getMessage() + " OTP: "+otp.getOtp());
+            return new ResponseEntity<>(registrationResponse, HttpStatus.OK);
     }
 
     @PostMapping("/register")
@@ -50,22 +54,20 @@ public class AuthenController {
         if (otp != null && !otp.isEmpty()) {
             boolean isOtpValid = otpService.validateOtp(otp, email);
             if (!isOtpValid) {
-                RegistrationResponse errorResponse = new RegistrationResponse(false, "Mã OTP không hợp lệ hoặc đã hết hạn", null);
+                RegistrationResponse errorResponse = new RegistrationResponse(false, ValidationMessages.OTP_IS_OUTDATED.getMessage(), null);
                 return ResponseEntity.badRequest().body(errorResponse);
             }
         }
         if (otp == null || otp.isEmpty()) {
-            RegistrationResponse response = new RegistrationResponse(false, "Đăng ký thành công. Vui lòng xác thực tài khoản của bạn bằng cách nhập mã OTP đã gửi đến email của bạn.", null);
+            RegistrationResponse response = new RegistrationResponse(false, ValidationMessages.OTP_NOT_EMPTY.getMessage(), null);
             return ResponseEntity.ok(response);
         }
         RegistrationResponse registrationResponse = authService.registerForUser(email, username, password);
         if (!registrationResponse.isSuccess()) {
             if (registrationResponse.getMessage().equals(ValidationMessages.EMAIL_ALREADY_EXISTS.getMessage())) {
-                RegistrationResponse errorResponse = new RegistrationResponse(false, "Email đã tồn tại", null);
-                return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
+                return new ResponseEntity<>(registrationResponse, HttpStatus.CONFLICT);
             } else {
-                RegistrationResponse errorResponse = new RegistrationResponse(false, "Đăng ký thất bại: " + registrationResponse.getMessage(), null);
-                return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+                return new ResponseEntity<>(registrationResponse, HttpStatus.BAD_REQUEST);
             }
         }
         return new ResponseEntity<>(registrationResponse, HttpStatus.OK);

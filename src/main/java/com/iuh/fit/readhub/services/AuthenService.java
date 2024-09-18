@@ -27,6 +27,15 @@ public class AuthenService {
     @Autowired
     private JwtUtil jwtUtil;
 
+    public RegistrationResponse sendOTPToRegister(String email,String username) {
+        if (userRepository.existsByEmail(email)) {
+            return new RegistrationResponse(false, ValidationMessages.EMAIL_ALREADY_EXISTS.getMessage(), null);
+        }
+        if(userRepository.existsByUsername(username)) {
+            return new RegistrationResponse(false, ValidationMessages.USERNAME_ALREADY_EXISTS.getMessage(), null);
+        }
+        return new RegistrationResponse(true, ValidationMessages.OTP_SENT.getMessage(), null);
+    }
 
     public RegistrationResponse registerForUser(String email, String username, String password) {
         if (userRepository.existsByEmail(email)) {
