@@ -10,6 +10,7 @@ public enum ValidationMessages {
     USERNAME_INVALID("Username phải có ít nhất 6 ký tự"),
     REGISTER_SUCCESS("Đăng ký thành công!"),
     USERNAME_ALREADY_EXISTS("Username đã tồn tại"),
+    OTP_SENT("Mã OTP đã được gửi đến email của bạn"),
     OTP_NOT_EMPTY("Mã OTP không được để trống"),
     OTP_IS_OUTDATED("Mã OTP này không còn hiệu lực"),
     OTP_IS_INVALID("Mã OTP không hợp lệ");
