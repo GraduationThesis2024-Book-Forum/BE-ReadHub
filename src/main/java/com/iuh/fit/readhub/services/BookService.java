@@ -9,12 +9,25 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class BookService {
+
+    private final ConcurrentHashMap<String, Document> htmlCache = new ConcurrentHashMap<>();
+
+    private Document getHtmlFromUrl(String url) throws IOException {
+        if (htmlCache.containsKey(url)) {
+            return htmlCache.get(url);
+        }
+        Document doc = Jsoup.connect(url).get();
+        htmlCache.put(url, doc);
+        return doc;
+    }
+
     public List<String> getChaptersFromHtml(String url) throws IOException {
         List<String> chapters = new ArrayList<>();
-        Document doc = Jsoup.connect(url).get();
+        Document doc = getHtmlFromUrl(url);
 
         Elements chapterElements = doc.select("a.pginternal");
 
@@ -27,7 +40,7 @@ public class BookService {
     }
 
     public String getChapterContent(String url, String chapterId) throws IOException {
-        Document doc = Jsoup.connect(url).get();
+        Document doc = getHtmlFromUrl(url);
 
         Elements chapterAnchors = doc.select("a[id=" + chapterId + "]");
 
