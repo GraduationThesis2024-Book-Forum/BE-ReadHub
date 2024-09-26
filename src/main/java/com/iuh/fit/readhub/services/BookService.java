@@ -1,5 +1,6 @@
 package com.iuh.fit.readhub.services;
 
+import com.iuh.fit.readhub.dto.ChapterDTO;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -25,45 +26,38 @@ public class BookService {
         return doc;
     }
 
-    public List<String> getChaptersFromHtml(String url) throws IOException {
-        List<String> chapters = new ArrayList<>();
+    public List<ChapterDTO> getChaptersFromHtml(String url) throws IOException {
+        List<ChapterDTO> chapters = new ArrayList<>();
         Document doc = getHtmlFromUrl(url);
 
         Elements chapterElements = doc.select("a.pginternal");
-
         for (Element chapterElement : chapterElements) {
             String chapterName = chapterElement.text();
-            chapters.add(chapterName);
-        }
+            String chapterId = chapterElement.attr("id");
 
+            chapters.add(new ChapterDTO(chapterId, chapterName));
+        }
         return chapters;
     }
 
     public String getChapterContent(String url, String chapterId) throws IOException {
         Document doc = getHtmlFromUrl(url);
-
         Elements chapterAnchors = doc.select("a[id=" + chapterId + "]");
-
         if (chapterAnchors.isEmpty()) {
             return "Chương không tồn tại!";
         }
 
         Element chapterAnchor = chapterAnchors.first();
-
         Element chapterDiv = chapterAnchor.parent();
-
         StringBuilder chapterContent = new StringBuilder();
 
         while (chapterDiv != null) {
             chapterContent.append(chapterDiv.outerHtml());
-
             if (chapterDiv.toString().contains("<!--end chapter-->")) {
                 break;
             }
-
             chapterDiv = chapterDiv.nextElementSibling();
         }
-
         return chapterContent.toString();
     }
 }
