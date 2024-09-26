@@ -33,8 +33,9 @@ public class BookService {
         Elements chapterElements = doc.select("a.pginternal");
         for (Element chapterElement : chapterElements) {
             String chapterName = chapterElement.text();
-            String chapterId = chapterElement.attr("id");
+            String chapterHref = chapterElement.attr("href");
 
+            String chapterId = chapterHref.startsWith("#") ? chapterHref.substring(1) : chapterHref;
             chapters.add(new ChapterDTO(chapterId, chapterName));
         }
         return chapters;
