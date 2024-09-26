@@ -1,5 +1,6 @@
 package com.iuh.fit.readhub.controllers;
 
+import com.iuh.fit.readhub.dto.ChapterDTO;
 import com.iuh.fit.readhub.services.BookService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,7 +19,7 @@ public class BookController {
     private BookService bookService;
 
     @GetMapping("/chapters")
-    public List<String> getChapters(@RequestParam String url) throws IOException {
+    public List<ChapterDTO> getChapters(@RequestParam String url) throws IOException {
         return bookService.getChaptersFromHtml(url);
     }
 
