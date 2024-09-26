@@ -21,4 +21,10 @@ public class BookController {
     public List<String> getChapters(@RequestParam String url) throws IOException {
         return bookService.getChaptersFromHtml(url);
     }
+
+    @GetMapping("/chapter-content")
+    public String getChapterContent(@RequestParam String url, @RequestParam String chapterId) throws IOException {
+        return bookService.getChapterContent(url, chapterId);
+    }
+
 }
