@@ -18,7 +18,6 @@ public class WebSecurityConfig {
                         .requestMatchers("/api/v1/book/**").permitAll()
                         .anyRequest().authenticated()
                 )
-                // Vô hiệu hóa CSRF
                 .csrf(csrf -> csrf.disable());
 
         return http.build();
