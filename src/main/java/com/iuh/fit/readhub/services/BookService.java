@@ -19,7 +19,7 @@ public class BookService {
         Elements chapterElements = doc.select("a.pginternal");
 
         for (Element chapterElement : chapterElements) {
-            String chapterName = chapterElement.text();  // Lấy tên chương
+            String chapterName = chapterElement.text();
             chapters.add(chapterName);
         }
 
