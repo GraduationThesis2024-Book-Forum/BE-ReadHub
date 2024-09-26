@@ -25,4 +25,32 @@ public class BookService {
 
         return chapters;
     }
+
+    public String getChapterContent(String url, String chapterId) throws IOException {
+        Document doc = Jsoup.connect(url).get();
+
+        Elements chapterAnchors = doc.select("a[id=" + chapterId + "]");
+
+        if (chapterAnchors.isEmpty()) {
+            return "Chương không tồn tại!";
+        }
+
+        Element chapterAnchor = chapterAnchors.first();
+
+        Element chapterDiv = chapterAnchor.parent();
+
+        StringBuilder chapterContent = new StringBuilder();
+
+        while (chapterDiv != null) {
+            chapterContent.append(chapterDiv.outerHtml());
+
+            if (chapterDiv.toString().contains("<!--end chapter-->")) {
+                break;
+            }
+
+            chapterDiv = chapterDiv.nextElementSibling();
+        }
+
+        return chapterContent.toString();
+    }
 }
