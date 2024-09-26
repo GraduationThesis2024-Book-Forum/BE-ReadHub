@@ -7,6 +7,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.io.IOException;
+import java.util.List;
+
 @RestController
 @RequestMapping("api/v1/book")
 public class BookController {
@@ -14,15 +17,8 @@ public class BookController {
     @Autowired
     private BookService bookService;
 
-    @GetMapping("/chapter")
-    public String getChapter(@RequestParam int chapterNumber) {
-        // Trả về nội dung của chương dựa trên số chương
-        return bookService.getChapter(chapterNumber);
-    }
-
-    @GetMapping("/total-chapters")
-    public int getTotalChapters() {
-        // Trả về tổng số chương của cuốn sách
-        return bookService.getTotalChapters();
+    @GetMapping("/chapters")
+    public List<String> getChapters(@RequestParam String url) throws IOException {
+        return bookService.getChaptersFromHtml(url);
     }
 }
