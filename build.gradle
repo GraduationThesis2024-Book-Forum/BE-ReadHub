@@ -42,6 +42,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-mail'
 	implementation 'org.springframework:spring-context:6.1.12'
 	implementation 'com.sun.mail:jakarta.mail:2.0.1'
+	implementation 'org.jsoup:jsoup:1.7.2'
 
 
 
