@@ -39,7 +39,6 @@ public class AuthenController {
             }
             OTP otp = otpService.generateOtp(email);
             emailService.sendOtpEmail(email, otp.getOtp());
-            registrationResponse.setMessage(registrationResponse.getMessage() + " OTP: "+otp.getOtp());
             return new ResponseEntity<>(registrationResponse, HttpStatus.OK);
     }
 
