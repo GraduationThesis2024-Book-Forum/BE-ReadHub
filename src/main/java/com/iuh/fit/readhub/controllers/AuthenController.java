@@ -16,6 +16,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
+
+import java.util.HashMap;
+import java.util.Map;
+
 @RestController
 @RequestMapping("api/v1/authen")
 public class AuthenController {
@@ -50,7 +56,6 @@ public class AuthenController {
             @RequestParam String password,
             @RequestParam(required = false) String otp
     ) {
-
         if (otp != null && !otp.isEmpty()) {
             boolean isOtpValid = otpService.validateOtp(otp, email);
             if (!isOtpValid) {
@@ -74,12 +79,30 @@ public class AuthenController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestParam String email, @RequestParam String password) {
+    public ResponseEntity<?> login(@RequestParam String email, @RequestParam String password, HttpServletResponse response) {
         String token = authService.login(email, password);
         if (token != null) {
+            Cookie cookie = new Cookie("token", token);
+            cookie.setHttpOnly(true);
+            cookie.setSecure(true);
+            cookie.setPath("/");
+            response.addCookie(cookie);
             return ResponseEntity.ok(new RegistrationResponse(true, "Đăng nhập thành công", token));
         } else {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new RegistrationResponse(false, "Email hoặc mật khẩu không đúng", null));
         }
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Map<String, String>> logout(HttpServletResponse response) {
+        Cookie cookie = new Cookie("token", null);
+        cookie.setHttpOnly(true);
+        cookie.setSecure(true);
+        cookie.setPath("/");
+        cookie.setMaxAge(0);
+        response.addCookie(cookie);
+        Map<String, String> model = new HashMap<>();
+        model.put("message", "Logged out successfully");
+        return ResponseEntity.ok(model);
     }
 }
