@@ -29,32 +29,32 @@ public class AuthenService {
 
     public RegistrationResponse sendOTPToRegister(String email,String username) {
         if (userRepository.existsByEmail(email)) {
-            return new RegistrationResponse(false, ValidationMessages.EMAIL_ALREADY_EXISTS.getMessage(), null);
+            return new RegistrationResponse(false, ValidationMessages.EMAIL_ALREADY_EXISTS.getMessage(), null,null);
         }
         if(userRepository.existsByUsername(username)) {
-            return new RegistrationResponse(false, ValidationMessages.USERNAME_ALREADY_EXISTS.getMessage(), null);
+            return new RegistrationResponse(false, ValidationMessages.USERNAME_ALREADY_EXISTS.getMessage(), null,null);
         }
-        return new RegistrationResponse(true, ValidationMessages.OTP_SENT.getMessage(), null);
+        return new RegistrationResponse(true, ValidationMessages.OTP_SENT.getMessage(), null,null);
     }
 
     public RegistrationResponse registerForUser(String email, String username, String password) {
         if (userRepository.existsByEmail(email)) {
-            return new RegistrationResponse(false, ValidationMessages.EMAIL_ALREADY_EXISTS.getMessage(), null);
+            return new RegistrationResponse(false, ValidationMessages.EMAIL_ALREADY_EXISTS.getMessage(), null,null);
         }
         if(userRepository.existsByUsername(username)){
-            return new RegistrationResponse(false, ValidationMessages.USERNAME_ALREADY_EXISTS.getMessage(), null);
+            return new RegistrationResponse(false, ValidationMessages.USERNAME_ALREADY_EXISTS.getMessage(), null,null);
         }
 
         if (!Pattern.matches(ValidationConstants.EMAIL_REGEX, email)) {
-            return new RegistrationResponse(false, ValidationMessages.EMAIL_INVALID.getMessage(), null);
+            return new RegistrationResponse(false, ValidationMessages.EMAIL_INVALID.getMessage(), null,null);
         }
 
         if (username.length() < ValidationConstants.USERNAME_MIN_LENGTH) {
-            return new RegistrationResponse(false, ValidationMessages.USERNAME_INVALID.getMessage(), null);
+            return new RegistrationResponse(false, ValidationMessages.USERNAME_INVALID.getMessage(), null,null);
         }
 
         if (!Pattern.matches(ValidationConstants.PASSWORD_REGEX, password)) {
-            return new RegistrationResponse(false, ValidationMessages.PASSWORD_INVALID.getMessage(), null);
+            return new RegistrationResponse(false, ValidationMessages.PASSWORD_INVALID.getMessage(), null,null);
         }
 
         String encodedPassword = passwordEncoder.encode(password);
@@ -67,16 +67,31 @@ public class AuthenService {
 
         userRepository.save(newUser);
         String token = jwtUtil.generateToken(username);
+        String role = getRole(email);
 
-        return new RegistrationResponse(true, ValidationMessages.REGISTER_SUCCESS.getMessage(),token);
+        return new RegistrationResponse(true, ValidationMessages.REGISTER_SUCCESS.getMessage(),role,token);
     }
 
     public String login(String email, String password) {
-        Optional<User> user = userRepository.findByEmail(email);
+        Optional<User> user = userRepository.findByEmail(email).or(
+                () -> userRepository.findByUsername(email));
         if (user.isPresent() && passwordEncoder.matches(password, user.get().getPassword())) {
             return jwtUtil.generateToken(user.get().getUsername());
         }
         return null;
+    }
+
+    public String getRole(String email){
+        Optional<User> user = userRepository.findByEmail(email).or(
+                () -> userRepository.findByUsername(email));
+        if(user.isPresent()){
+            return user.get().getRole().toString();
+        }
+        return null;
+    }
+
+    public User getUserByEmail(String email) {
+        return userRepository.findByEmail(email).orElse(null);
     }
 
 }

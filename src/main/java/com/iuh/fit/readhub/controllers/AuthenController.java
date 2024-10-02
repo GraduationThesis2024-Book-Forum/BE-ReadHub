@@ -59,12 +59,12 @@ public class AuthenController {
         if (otp != null && !otp.isEmpty()) {
             boolean isOtpValid = otpService.validateOtp(otp, email);
             if (!isOtpValid) {
-                RegistrationResponse errorResponse = new RegistrationResponse(false, ValidationMessages.OTP_IS_OUTDATED.getMessage(), null);
+                RegistrationResponse errorResponse = new RegistrationResponse(false, ValidationMessages.OTP_IS_OUTDATED.getMessage(), null,null);
                 return ResponseEntity.badRequest().body(errorResponse);
             }
         }
         if (otp == null || otp.isEmpty()) {
-            RegistrationResponse response = new RegistrationResponse(false, ValidationMessages.OTP_NOT_EMPTY.getMessage(), null);
+            RegistrationResponse response = new RegistrationResponse(false, ValidationMessages.OTP_NOT_EMPTY.getMessage(), null,null);
             return ResponseEntity.ok(response);
         }
         RegistrationResponse registrationResponse = authService.registerForUser(email, username, password);
@@ -81,15 +81,11 @@ public class AuthenController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestParam String email, @RequestParam String password, HttpServletResponse response) {
         String token = authService.login(email, password);
+        String role= authService.getRole(email);
         if (token != null) {
-            Cookie cookie = new Cookie("token", token);
-            cookie.setHttpOnly(true);
-            cookie.setSecure(true);
-            cookie.setPath("/");
-            response.addCookie(cookie);
-            return ResponseEntity.ok(new RegistrationResponse(true, "Đăng nhập thành công", token));
+            return ResponseEntity.ok(new RegistrationResponse(true, "Đăng nhập thành công", role, token));
         } else {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new RegistrationResponse(false, "Email hoặc mật khẩu không đúng", null));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new RegistrationResponse(false, "Tài khoản hoặc mật khẩu không đúng", null, null));
         }
     }
 
