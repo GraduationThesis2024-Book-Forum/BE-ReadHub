@@ -16,6 +16,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
+
+import java.util.HashMap;
+import java.util.Map;
+
 @RestController
 @RequestMapping("api/v1/authen")
 public class AuthenController {
@@ -49,16 +55,15 @@ public class AuthenController {
             @RequestParam String password,
             @RequestParam(required = false) String otp
     ) {
-
         if (otp != null && !otp.isEmpty()) {
             boolean isOtpValid = otpService.validateOtp(otp, email);
             if (!isOtpValid) {
-                RegistrationResponse errorResponse = new RegistrationResponse(false, ValidationMessages.OTP_IS_OUTDATED.getMessage(), null);
+                RegistrationResponse errorResponse = new RegistrationResponse(false, ValidationMessages.OTP_IS_OUTDATED.getMessage(), null,null);
                 return ResponseEntity.badRequest().body(errorResponse);
             }
         }
         if (otp == null || otp.isEmpty()) {
-            RegistrationResponse response = new RegistrationResponse(false, ValidationMessages.OTP_NOT_EMPTY.getMessage(), null);
+            RegistrationResponse response = new RegistrationResponse(false, ValidationMessages.OTP_NOT_EMPTY.getMessage(), null,null);
             return ResponseEntity.ok(response);
         }
         RegistrationResponse registrationResponse = authService.registerForUser(email, username, password);
@@ -73,12 +78,26 @@ public class AuthenController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestParam String email, @RequestParam String password) {
+    public ResponseEntity<?> login(@RequestParam String email, @RequestParam String password, HttpServletResponse response) {
         String token = authService.login(email, password);
+        String role= authService.getRole(email);
         if (token != null) {
-            return ResponseEntity.ok(new RegistrationResponse(true, "Đăng nhập thành công", token));
+            return ResponseEntity.ok(new RegistrationResponse(true, "Đăng nhập thành công", role, token));
         } else {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new RegistrationResponse(false, "Email hoặc mật khẩu không đúng", null));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new RegistrationResponse(false, "Tài khoản hoặc mật khẩu không đúng", null, null));
         }
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Map<String, String>> logout(HttpServletResponse response) {
+        Cookie cookie = new Cookie("token", null);
+        cookie.setHttpOnly(true);
+        cookie.setSecure(true);
+        cookie.setPath("/");
+        cookie.setMaxAge(0);
+        response.addCookie(cookie);
+        Map<String, String> model = new HashMap<>();
+        model.put("message", "Logged out successfully");
+        return ResponseEntity.ok(model);
     }
 }
