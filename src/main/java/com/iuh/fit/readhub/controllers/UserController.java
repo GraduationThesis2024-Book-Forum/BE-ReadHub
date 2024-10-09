@@ -20,9 +20,16 @@ import java.util.Optional;
 @RestController
 @RequestMapping("api/v1/user")
 public class UserController {
+    @Autowired
+    private AuthenService authService;
+
+    @Autowired
+    private JwtUtil jwtUtil;
 
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private UserService userService;
 
     @GetMapping
     @PreAuthorize("hasRole('ROLE_ADMIN')")
