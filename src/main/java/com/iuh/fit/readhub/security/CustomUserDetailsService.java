@@ -1,4 +1,4 @@
-package com.iuh.fit.readhub.config;
+package com.iuh.fit.readhub.security;
 
 import com.iuh.fit.readhub.repositories.UserRepository;
 import com.iuh.fit.readhub.models.User;

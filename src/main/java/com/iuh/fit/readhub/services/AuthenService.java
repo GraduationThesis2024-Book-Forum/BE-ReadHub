@@ -9,6 +9,7 @@ import com.iuh.fit.readhub.models.UserRole;
 import com.iuh.fit.readhub.repositories.UserRepository;
 import com.iuh.fit.readhub.security.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -72,13 +73,24 @@ public class AuthenService {
         return new RegistrationResponse(true, ValidationMessages.REGISTER_SUCCESS.getMessage(),role,token);
     }
 
+    public boolean isAuthentication(Authentication authentication) {
+        if(authentication.getName() == null || authentication.getName().isEmpty()){
+            return false;
+        }
+        if (!userRepository.findByEmail(authentication.getName()).or(
+                () -> userRepository.findByUsername(authentication.getName())).isPresent()) {
+            return false;
+        }
+        return true;
+    }
+
     public String login(String email, String password) {
         Optional<User> user = userRepository.findByEmail(email).or(
                 () -> userRepository.findByUsername(email));
         if (user.isPresent() && passwordEncoder.matches(password, user.get().getPassword())) {
             return jwtUtil.generateToken(user.get().getUsername());
         }
-        return null;
+        return "Invalid email or password";
     }
 
     public String getRole(String email){
