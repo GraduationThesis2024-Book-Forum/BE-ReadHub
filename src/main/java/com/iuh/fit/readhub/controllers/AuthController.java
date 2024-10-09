@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("api/v1/authen")
-public class AuthenController {
+public class AuthController {
     @Autowired
     private AuthenService authService;
 
@@ -53,7 +53,16 @@ public class AuthenController {
         if (otp != null && !otp.isEmpty()) {
             boolean isOtpValid = otpService.validateOtp(otp, email);
             if (!isOtpValid) {
+<<<<<<< Updated upstream:src/main/java/com/iuh/fit/readhub/controllers/AuthenController.java
                 RegistrationResponse errorResponse = new RegistrationResponse(false, ValidationMessages.OTP_IS_OUTDATED.getMessage(), null);
+=======
+                RegistrationResponse errorResponse = new RegistrationResponse(
+                        false,
+                        ValidationMessages.OTP_IS_OUTDATED.getMessage(),
+                        null,
+                        null
+                );
+>>>>>>> Stashed changes:src/main/java/com/iuh/fit/readhub/controllers/AuthController.java
                 return ResponseEntity.badRequest().body(errorResponse);
             }
         }
@@ -73,12 +82,29 @@ public class AuthenController {
     }
 
     @PostMapping("/login")
+<<<<<<< Updated upstream:src/main/java/com/iuh/fit/readhub/controllers/AuthenController.java
     public ResponseEntity<?> login(@RequestParam String email, @RequestParam String password) {
+=======
+    public ResponseEntity<?> login(
+            @RequestParam String email,
+            @RequestParam String password
+    ) {
+>>>>>>> Stashed changes:src/main/java/com/iuh/fit/readhub/controllers/AuthController.java
         String token = authService.login(email, password);
         if (token != null) {
             return ResponseEntity.ok(new RegistrationResponse(true, "Đăng nhập thành công", token));
         } else {
+<<<<<<< Updated upstream:src/main/java/com/iuh/fit/readhub/controllers/AuthenController.java
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new RegistrationResponse(false, "Email hoặc mật khẩu không đúng", null));
+=======
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                    new RegistrationResponse(
+                            false,
+                    "Tài khoản hoặc mật khẩu không đúng",
+                            null,
+                            null
+                    ));
+>>>>>>> Stashed changes:src/main/java/com/iuh/fit/readhub/controllers/AuthController.java
         }
     }
 }
