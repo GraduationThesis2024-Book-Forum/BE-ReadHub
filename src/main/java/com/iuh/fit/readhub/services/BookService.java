@@ -21,7 +21,8 @@ public class BookService {
         if (htmlCache.containsKey(url)) {
             return htmlCache.get(url);
         }
-        Document doc = Jsoup.connect(url).get();
+        Document doc = Jsoup.connect(url)
+                .get();
         htmlCache.put(url, doc);
         return doc;
     }
@@ -60,5 +61,11 @@ public class BookService {
             chapterDiv = chapterDiv.nextElementSibling();
         }
         return chapterContent.toString();
+    }
+
+    public String getBookContent(String url,String urlImageCover) throws IOException {
+        Document doc = getHtmlFromUrl(url);
+        String contents = doc.select("body").toString().replace("images/cover.jpg", urlImageCover);
+        return contents;
     }
 }

@@ -2,6 +2,8 @@ package com.iuh.fit.readhub.controllers;
 
 import com.iuh.fit.readhub.dto.ChapterDTO;
 import com.iuh.fit.readhub.services.BookService;
+import org.jsoup.nodes.Document;
+import org.jsoup.select.Elements;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,6 +28,11 @@ public class BookController {
     @GetMapping("/chapter-content")
     public String getChapterContent(@RequestParam String url, @RequestParam String chapterId) throws IOException {
         return bookService.getChapterContent(url, chapterId);
+    }
+
+    @GetMapping("/book-content")
+    public String getBookContent(@RequestParam String url, @RequestParam String urlImageCover) throws IOException {
+        return bookService.getBookContent(url, urlImageCover);
     }
 
 }
