@@ -21,7 +21,7 @@ public class BookService {
         if (htmlCache.containsKey(url)) {
             return htmlCache.get(url);
         }
-        Document doc = Jsoup.connect(url)
+        Document doc = Jsoup.connect(url).timeout(15000)
                 .get();
         htmlCache.put(url, doc);
         return doc;
