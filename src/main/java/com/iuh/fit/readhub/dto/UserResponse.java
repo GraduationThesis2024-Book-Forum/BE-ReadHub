@@ -9,6 +9,7 @@ import lombok.*;
 @NoArgsConstructor
 @Builder
 public class UserResponse {
+    private Long userId;
     private String username;
     private String email;
     private String role;

@@ -64,6 +64,7 @@ public class UserController {
             }
             User user = userOptional.get();
             UserResponse userResponse = UserResponse.builder()
+                    .userId(user.getUserId())
                     .email(user.getEmail())
                     .username(user.getUsername())
                     .role(user.getRole().toString())
