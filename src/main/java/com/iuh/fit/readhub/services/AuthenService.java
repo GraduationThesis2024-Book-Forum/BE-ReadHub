@@ -90,7 +90,7 @@ public class AuthenService {
         if (user.isPresent() && passwordEncoder.matches(password, user.get().getPassword())) {
             return jwtUtil.generateToken(user.get().getUsername());
         }
-        return "Invalid email or password";
+        return null;
     }
 
     public String getRole(String email){
