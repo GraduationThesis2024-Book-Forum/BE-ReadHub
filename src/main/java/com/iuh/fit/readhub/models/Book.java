@@ -33,9 +33,6 @@ public class Book {
     private String format;
 
     @OneToMany(mappedBy = "book")
-    private Set<Note> notes;
-
-    @OneToMany(mappedBy = "book")
     private Set<Rating> ratings;
 
     @OneToMany(mappedBy = "book")
@@ -69,7 +66,6 @@ public class Book {
                 ", coverImage='" + coverImage + '\'' +
                 ", externalApiId='" + externalApiId + '\'' +
                 ", format='" + format + '\'' +
-                ", notes=" + notes +
                 ", ratings=" + ratings +
                 ", bookCategories=" + bookCategories +
                 ", bookTags=" + bookTags +

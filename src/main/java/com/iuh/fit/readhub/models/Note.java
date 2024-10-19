@@ -19,16 +19,21 @@ public class Note {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long noteId;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @ManyToOne
-    @JoinColumn(name = "book_id", nullable = false)
-    private Book book;
+    private Long bookId;
 
+    @Column(columnDefinition = "TEXT")
     private String content;
-    private Integer pageNumber;
+
+    @Column(columnDefinition = "TEXT")
+    private String selectedText;
+
+    private String cfiRange;
+
+    private String color;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -36,20 +41,29 @@ public class Note {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    private Float positionInPage;
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
 
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 
     @Override
     public String toString() {
         return "Note{" +
                 "noteId=" + noteId +
-                ", user=" + user +
-                ", book=" + book +
+                ", user=" + user.getUserId() +
+                ", bookId=" + bookId +
                 ", content='" + content + '\'' +
-                ", pageNumber=" + pageNumber +
+                ", selectedText='" + selectedText + '\'' +
+                ", cfiRange='" + cfiRange + '\'' +
+                ", color='" + color + '\'' +
                 ", createdAt=" + createdAt +
                 ", updatedAt=" + updatedAt +
-                ", positionInPage=" + positionInPage +
                 '}';
     }
 }

@@ -69,7 +69,6 @@ public class User {
                 ", email='" + email + '\'' +
                 ", role=" + role +
                 ", createdAt=" + createdAt +
-                ", notes=" + notes +
                 ", discussions=" + discussions +
                 ", ratings=" + ratings +
                 ", readingHistories=" + readingHistories +
