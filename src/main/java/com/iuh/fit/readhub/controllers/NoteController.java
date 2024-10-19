@@ -15,6 +15,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 
@@ -102,14 +103,9 @@ public class NoteController {
     @PutMapping
     @PreAuthorize("hasRole('ROLE_ADMIṆ') || hasRole('ROLE_USER')")
     public ResponseEntity<ApiResponse<?>> updateNote(@RequestBody NoteRequest note) {
-        Note newNote =new Note();
-        newNote.setNoteId(note.getNoteId());
-        newNote.setUser(userRepository.findById(note.getUserId()).get());
-        newNote.setBookId(note.getBookId());
-        newNote.setContent(note.getContent());
-        newNote.setSelectedText(note.getSelectedText());
-        newNote.setCfiRange(note.getCfiRange());
-        newNote.setColor(note.getColor());
+        Note newNote = noteService.getNoteById(note.getNoteId()).get();
+        newNote.setContent(note.getContent() != null ? note.getContent() : newNote.getContent());
+        newNote.setColor(note.getColor() != null ? note.getColor() : newNote.getColor());
         noteService.updateNote(newNote);
         return ResponseEntity.ok(ApiResponse.builder()
                 .message("Cập nhật note thành công")
