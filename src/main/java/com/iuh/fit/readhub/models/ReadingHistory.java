@@ -28,7 +28,8 @@ public class ReadingHistory {
     @CreatedDate
     private LocalDateTime createdAt;
 
-
+    @Column(name = "time_spent")
+    private Integer timeSpent;
 
     @Override
     public String toString() {
@@ -37,6 +38,7 @@ public class ReadingHistory {
                 ", user=" + user +
                 ", bookId=" + bookId +
                 ", createdAt=" + createdAt +
+                ", timeSpent=" + timeSpent +
                 '}';
     }
 }

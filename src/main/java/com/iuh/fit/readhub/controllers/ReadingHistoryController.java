@@ -8,10 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.*;
 
 @Controller
 @RequestMapping("api/v1/reading-history")
@@ -28,6 +25,17 @@ public class ReadingHistoryController {
         readingHistoryService.createReadingHistory(readingHistoryRequest);
         return ResponseEntity.ok(ApiResponse.builder()
                 .message("Tạo lịch sử đọc sách thành công")
+                .status(200)
+                .success(true)
+                .build());
+    }
+
+    @PutMapping
+    @PreAuthorize("hasRole('ROLE_ADMIṆ') || hasRole('ROLE_USER')")
+    public ResponseEntity<ApiResponse<?>> updateReadingHistory(@RequestBody ReadingHistoryRequest readingHistoryRequest) {
+        readingHistoryService.updateReadingHistory(readingHistoryRequest);
+        return ResponseEntity.ok(ApiResponse.builder()
+                .message("Cập nhật lịch sử đọc sách thành công")
                 .status(200)
                 .success(true)
                 .build());
