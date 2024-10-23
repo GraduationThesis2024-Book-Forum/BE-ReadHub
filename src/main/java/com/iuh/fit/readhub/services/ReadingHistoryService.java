@@ -22,6 +22,9 @@ public class ReadingHistoryService {
     public void createReadingHistory(ReadingHistoryRequest request) {
         ReadingHistory history = readingHistoryRepository
                 .findByUserIdAndBookId(request.getUserId(), request.getBookId());
+        if(history == null) {
+            history = new ReadingHistory();
+        }
         if (history.getHistoryId() == null) {
             history.setUser(userRepository.findById(request.getUserId()).get());
             history.setBookId(request.getBookId());
