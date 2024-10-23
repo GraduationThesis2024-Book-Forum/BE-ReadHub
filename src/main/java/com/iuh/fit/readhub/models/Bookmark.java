@@ -1,13 +1,12 @@
 package com.iuh.fit.readhub.models;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 @AllArgsConstructor
@@ -16,6 +15,7 @@ import java.time.LocalDateTime;
 @Setter
 @Entity
 @Table(name = "Bookmark")
+@Builder
 public class Bookmark {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -30,14 +30,21 @@ public class Bookmark {
     private String location;
 
     @Column(name = "created_at")
-    @CreatedDate
     private LocalDateTime createdAt;
 
-    @Column(name = "update_at")
-    @LastModifiedDate
+    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
 
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 
 
     @Override

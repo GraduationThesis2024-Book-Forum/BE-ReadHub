@@ -26,7 +26,8 @@ public class BookmarkService {
     }
 
     public void updateBookmark(BookmarkRequest bookmarkRequest) {
-        Bookmark bookmark = bookmarkRepository.findById(bookmarkRequest.getBookmarkId()).get();
+        Bookmark bookmark = new Bookmark();
+        bookmark.setBookmarkId(bookmarkRequest.getBookmarkId());
         bookmark.setUser(userRepository.findById(bookmarkRequest.getUserId()).get());
         bookmark.setBookId(bookmarkRequest.getBookId());
         bookmark.setLocation(bookmarkRequest.getLocation());
@@ -34,6 +35,6 @@ public class BookmarkService {
     }
 
     public Bookmark getBookmarkByUserIdAndBookId(Long userId, Long bookId) {
-        return bookmarkRepository.findByUserAndBookId(userRepository.findById(userId).get(), bookId);
+        return bookmarkRepository.findByUserIdAndBookId(userId, bookId);
     }
 }

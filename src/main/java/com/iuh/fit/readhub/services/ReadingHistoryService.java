@@ -19,26 +19,20 @@ public class ReadingHistoryService {
     @Autowired
     private UserRepository userRepository;
 
-    public void createReadingHistory(ReadingHistoryRequest readingHistoryRequest) {
-        ReadingHistory readingHistory = new ReadingHistory();
-        readingHistory.setUser(userRepository.findById(readingHistoryRequest.getUserId()).get());
-        readingHistory.setBookId(readingHistoryRequest.getBookId());
-        readingHistory.setTimeSpent(readingHistoryRequest.getTimeSpent());
-        readingHistoryRepository.save(readingHistory);
+    public void createReadingHistory(ReadingHistoryRequest request) {
+        ReadingHistory history = readingHistoryRepository
+                .findByUserIdAndBookId(request.getUserId(), request.getBookId());
+        if (history.getHistoryId() == null) {
+            history.setUser(userRepository.findById(request.getUserId()).get());
+            history.setBookId(request.getBookId());
+            history.setTimeSpent(request.getTimeSpent());
+        } else {
+            history.setTimeSpent(history.getTimeSpent() + request.getTimeSpent());
+        }
+
+        readingHistoryRepository.save(history);
     }
 
-//    update
-    public void updateReadingHistory(ReadingHistoryRequest readingHistoryRequest) {
-        ReadingHistory readingHistory = readingHistoryRepository.findById(readingHistoryRequest.getReadingHistoryId()).get();
-        readingHistory.setUser(userRepository.findById(readingHistoryRequest.getUserId()).get());
-        readingHistory.setBookId(readingHistoryRequest.getBookId());
-        if (readingHistory.getTimeSpent() == null) {
-            readingHistory.setTimeSpent(readingHistoryRequest.getTimeSpent());
-        } else {
-            readingHistory.setTimeSpent(readingHistory.getTimeSpent() + readingHistoryRequest.getTimeSpent());
-        }
-        readingHistoryRepository.save(readingHistory);
-    }
 
     public List<ReadingHistory> getReadingHistoryByUserId(Long userId) {
         return readingHistoryRepository.findByUser(userRepository.findById(userId).get());

@@ -30,17 +30,6 @@ public class ReadingHistoryController {
                 .build());
     }
 
-    @PutMapping
-    @PreAuthorize("hasRole('ROLE_ADMIṆ') || hasRole('ROLE_USER')")
-    public ResponseEntity<ApiResponse<?>> updateReadingHistory(@RequestBody ReadingHistoryRequest readingHistoryRequest) {
-        readingHistoryService.updateReadingHistory(readingHistoryRequest);
-        return ResponseEntity.ok(ApiResponse.builder()
-                .message("Cập nhật lịch sử đọc sách thành công")
-                .status(200)
-                .success(true)
-                .build());
-    }
-
     @GetMapping("user/{userId}")
     @PreAuthorize("hasRole('ROLE_ADMIṆ') || hasRole('ROLE_USER')")
     public ResponseEntity<ApiResponse<?>> getReadingHistoryByUserId(@RequestBody Long userId) {
