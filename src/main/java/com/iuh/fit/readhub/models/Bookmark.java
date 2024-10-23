@@ -5,6 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
 
 import java.time.LocalDateTime;
 
@@ -23,25 +25,30 @@ public class Bookmark {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @ManyToOne
-    @JoinColumn(name = "book_id", nullable = false)
-    private Book book;
+    private Long bookId;
 
-    private Integer page;
-    private String note;
+    private String location;
 
     @Column(name = "created_at")
+    @CreatedDate
     private LocalDateTime createdAt;
+
+    @Column(name = "update_at")
+    @LastModifiedDate
+    private LocalDateTime updatedAt;
+
+
+
 
     @Override
     public String toString() {
         return "Bookmark{" +
                 "bookmarkId=" + bookmarkId +
                 ", user=" + user +
-                ", book=" + book +
-                ", page=" + page +
-                ", note='" + note + '\'' +
+                ", bookId=" + bookId +
+                ", location='" + location +
                 ", createdAt=" + createdAt +
+                ", updatedAt=" + updatedAt +
                 '}';
     }
 }

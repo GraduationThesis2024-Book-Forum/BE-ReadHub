@@ -5,6 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
 
 import java.time.LocalDateTime;
 
@@ -18,22 +20,13 @@ public class ReadingHistory {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long historyId;
-
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
-
-    @ManyToOne
-    @JoinColumn(name = "book_id", nullable = false)
-    private Book book;
-
-    @Column(name = "started_at")
-    private LocalDateTime startedAt;
-
-    @Column(name = "finished_at")
-    private LocalDateTime finishedAt;
-
-    private Integer currentPage;
+    private Long bookId;
+    @Column(name = "created_at")
+    @CreatedDate
+    private LocalDateTime createdAt;
 
 
 
@@ -42,10 +35,8 @@ public class ReadingHistory {
         return "ReadingHistory{" +
                 "historyId=" + historyId +
                 ", user=" + user +
-                ", book=" + book +
-                ", startedAt=" + startedAt +
-                ", finishedAt=" + finishedAt +
-                ", currentPage=" + currentPage +
+                ", bookId=" + bookId +
+                ", createdAt=" + createdAt +
                 '}';
     }
 }

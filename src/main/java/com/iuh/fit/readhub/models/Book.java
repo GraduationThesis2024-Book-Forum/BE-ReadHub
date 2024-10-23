@@ -45,9 +45,6 @@ public class Book {
     private Set<UserBookProgress> userBookProgresses;
 
     @OneToMany(mappedBy = "book")
-    private Set<ReadingHistory> readingHistories;
-
-    @OneToMany(mappedBy = "book")
     private Set<BookAuthor> bookAuthors;
 
     @ManyToOne
@@ -70,7 +67,6 @@ public class Book {
                 ", bookCategories=" + bookCategories +
                 ", bookTags=" + bookTags +
                 ", userBookProgresses=" + userBookProgresses +
-                ", readingHistories=" + readingHistories +
                 ", bookAuthors=" + bookAuthors +
                 '}';
     }
