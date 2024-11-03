@@ -12,6 +12,6 @@ import java.util.Optional;
 @Repository
 public interface ForumRepository extends JpaRepository<Discussion, Long> {
     @Modifying
-    @Query("refresh refresh entity Discussion d where d.id = :id")
-    void refresh(@Param("id") Discussion discussion);
+    @Query(value = "SELECT * FROM discussion WHERE discussion_id = :id FOR UPDATE", nativeQuery = true)
+    Optional<Discussion> refreshAndLock(@Param("id") Long id);
 }

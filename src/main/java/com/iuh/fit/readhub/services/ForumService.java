@@ -80,7 +80,7 @@ public class ForumService {
                 .orElseThrow(() -> new ForumException("Diễn đàn không tồn tại"));
 
         // Kiểm tra xem user đã join chưa
-        if (forumMemberRepository.existsByDiscussionIdAndUserId(forumId, user.getUserId())) {
+        if (forumMemberRepository.existsByDiscussion_DiscussionIdAndUser_UserId(forumId, user.getUserId())) {
             throw new ForumException("Bạn đã là thành viên của diễn đàn này");
         }
 
@@ -93,7 +93,7 @@ public class ForumService {
         forumMemberRepository.save(member);
 
         // Refresh discussion để lấy danh sách members mới nhất
-        forumRepository.refresh(discussion);
+        forumRepository.refreshAndLock(forumId);
 
         return discussion;
     }
@@ -109,6 +109,6 @@ public class ForumService {
 
     // Thêm method để kiểm tra user có phải là thành viên
     public boolean isForumMember(Long forumId, Long userId) {
-        return forumMemberRepository.existsByDiscussionIdAndUserId(forumId, userId);
+        return forumMemberRepository.existsByDiscussion_DiscussionIdAndUser_UserId(forumId, userId);
     }
 }

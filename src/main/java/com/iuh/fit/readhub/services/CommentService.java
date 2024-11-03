@@ -3,6 +3,7 @@ package com.iuh.fit.readhub.services;
 import com.iuh.fit.readhub.dto.CommentDTO;
 import com.iuh.fit.readhub.dto.UserDTO;
 import com.iuh.fit.readhub.dto.message.CommentMessage;
+import com.iuh.fit.readhub.mapper.UserMapper;
 import com.iuh.fit.readhub.models.Comment;
 import com.iuh.fit.readhub.models.Discussion;
 import com.iuh.fit.readhub.models.User;
@@ -23,6 +24,7 @@ public class CommentService {
     private final CommentRepository commentRepository;
     private final ForumRepository forumRepository;
     private final UserService userService;
+    private final UserMapper userMapper;
 
     @Transactional
     public CommentDTO createComment(CommentMessage message, Authentication authentication) {
@@ -41,9 +43,9 @@ public class CommentService {
     }
 
     public List<CommentDTO> getForumComments(Long forumId) {
-        return commentRepository.findByDiscussionIdOrderByCreatedAtDesc(forumId)
-                .stream()
-                .map(this::convertToDTO)
+        List<Comment> comments = commentRepository.findByDiscussion_DiscussionIdOrderByCreatedAtDesc(forumId);
+        return comments.stream()
+                .map(this::toDTO)
                 .collect(Collectors.toList());
     }
 
@@ -64,6 +66,16 @@ public class CommentService {
                 .build();
 
         dto.setUser(userDTO);
+        return dto;
+    }
+
+    private CommentDTO toDTO(Comment comment) {
+        CommentDTO dto = new CommentDTO();
+        dto.setId(comment.getCommentId());
+        dto.setContent(comment.getContent());
+        dto.setDiscussionId(comment.getDiscussion().getDiscussionId());
+        dto.setUser(userMapper.toDTO(comment.getUser()));
+        dto.setCreatedAt(comment.getCreatedAt());
         return dto;
     }
 }

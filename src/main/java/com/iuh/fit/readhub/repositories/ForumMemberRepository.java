@@ -5,6 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 
 public interface ForumMemberRepository extends JpaRepository<ForumMember, Long> {
-    Optional<ForumMember> findByDiscussionIdAndUserId(Long discussionId, Long userId);
-    boolean existsByDiscussionIdAndUserId(Long discussionId, Long userId);
+    Optional<ForumMember> findByDiscussion_DiscussionIdAndUser_UserId(Long discussionId, Long userId);
+    boolean existsByDiscussion_DiscussionIdAndUser_UserId(Long discussionId, Long userId);
 }
