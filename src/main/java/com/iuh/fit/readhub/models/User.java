@@ -29,7 +29,7 @@ public class User {
     @Column(unique = true, nullable = false)
     private String email;
 
-    @Column(name = "url_avatar",nullable = true)
+    @Column(name = "url_avatar")
     private String urlAvatar;
 
     @Enumerated(EnumType.STRING)
@@ -41,7 +41,7 @@ public class User {
     @OneToMany(mappedBy = "user")
     private Set<Note> notes;
 
-    @OneToMany(mappedBy = "user")
+    @OneToMany(mappedBy = "creator")
     private Set<Discussion> discussions;
 
     @OneToMany(mappedBy = "user")
@@ -58,7 +58,6 @@ public class User {
 
     @OneToMany(mappedBy = "user")
     private Set<UserGenrePreference> userGenrePreferences;
-
 
     @Override
     public String toString() {

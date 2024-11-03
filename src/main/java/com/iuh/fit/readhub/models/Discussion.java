@@ -1,16 +1,15 @@
 package com.iuh.fit.readhub.models;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Set;
 
 @AllArgsConstructor
 @NoArgsConstructor
+@Builder
 @Getter
 @Setter
 @Entity
@@ -20,36 +19,56 @@ public class Discussion {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long discussionId;
 
-    private String title;
-    private String content;
+    private Long bookId;
+    private String bookTitle;
+    private String authors;
+
+    @Column(nullable = false)
+    private String forumTitle;
+
+    @Column(length = 1000)
+    private String forumDescription;
+
+    private String imageUrl;
+
+    @ElementCollection
+    private List<String> subjects;
+
+    @ElementCollection
+    private List<String> categories;
+
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User creator;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
-
-    @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
-
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
     @OneToMany
     private Set<Comment> comments;
 
+    @OneToMany(mappedBy = "discussion")
+    private Set<ForumMember> members;
+
+    public boolean hasMember(User user) {
+        return members.stream()
+                .anyMatch(member -> member.getUser().getUserId().equals(user.getUserId()));
+    }
+
     @OneToMany
     private Set<DiscussionParticipant> discussionParticipants;
 
-    @Override
-    public String toString() {
-        return "Discussion{" +
-                "discussionId=" + discussionId +
-                ", title='" + title + '\'' +
-                ", content='" + content + '\'' +
-                ", createdAt=" + createdAt +
-                ", user=" + user +
-                ", updatedAt=" + updatedAt +
-                ", comments=" + comments +
-                ", discussionParticipants=" + discussionParticipants +
-                '}';
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
     }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+
 }

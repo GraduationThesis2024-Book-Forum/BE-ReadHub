@@ -1,4 +1,4 @@
-package com.iuh.fit.readhub.exception;
+package com.iuh.fit.readhub.exceptions;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
