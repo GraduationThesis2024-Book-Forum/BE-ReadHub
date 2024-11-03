@@ -1,9 +1,13 @@
 package com.iuh.fit.readhub.services;
 
 import com.iuh.fit.readhub.dto.request.ForumRequest;
-import com.iuh.fit.readhub.models.Forum;
+import com.iuh.fit.readhub.exceptions.ForumException;
+import com.iuh.fit.readhub.models.Discussion;
+import com.iuh.fit.readhub.models.ForumMember;
 import com.iuh.fit.readhub.models.User;
+import com.iuh.fit.readhub.repositories.ForumMemberRepository;
 import com.iuh.fit.readhub.repositories.ForumRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -13,24 +17,32 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class ForumService {
 
-    @Autowired
-    private ForumRepository forumRepository;
+    private final ForumRepository forumRepository;
+
+    private final ForumMemberRepository forumMemberRepository;
 
     @Value("${app.upload.dir:uploads/forums}")
     private String uploadDir;
 
-    public Forum createForum(ForumRequest request, User creator) throws IOException {
+    public ForumService(ForumRepository forumRepository, ForumMemberRepository forumMemberRepository) {
+        this.forumRepository = forumRepository;
+        this.forumMemberRepository = forumMemberRepository;
+    }
+
+    public Discussion createForum(ForumRequest request, User creator) throws IOException {
         String imageUrl = null;
         if (request.getForumImage() != null && !request.getForumImage().isEmpty()) {
             imageUrl = saveImage(request.getForumImage());
         }
 
-        Forum forum = Forum.builder()
+        Discussion forum = Discussion.builder()
                 .bookId(request.getBookId())
                 .bookTitle(request.getBookTitle())
                 .authors(request.getAuthors())
@@ -60,5 +72,43 @@ public class ForumService {
         Files.copy(file.getInputStream(), filePath);
 
         return filename;
+    }
+
+    @Transactional
+    public Discussion joinForum(Long forumId, User user) {
+        Discussion discussion = forumRepository.findById(forumId)
+                .orElseThrow(() -> new ForumException("Diễn đàn không tồn tại"));
+
+        // Kiểm tra xem user đã join chưa
+        if (forumMemberRepository.existsByDiscussionIdAndUserId(forumId, user.getUserId())) {
+            throw new ForumException("Bạn đã là thành viên của diễn đàn này");
+        }
+
+        // Tạo ForumMember mới
+        ForumMember member = ForumMember.builder()
+                .discussion(discussion)
+                .user(user)
+                .build();
+
+        forumMemberRepository.save(member);
+
+        // Refresh discussion để lấy danh sách members mới nhất
+        forumRepository.refresh(discussion);
+
+        return discussion;
+    }
+
+    public List<User> getForumMembers(Long forumId) {
+        Discussion discussion = forumRepository.findById(forumId)
+                .orElseThrow(() -> new ForumException("Diễn đàn không tồn tại"));
+
+        return discussion.getMembers().stream()
+                .map(ForumMember::getUser)
+                .collect(Collectors.toList());
+    }
+
+    // Thêm method để kiểm tra user có phải là thành viên
+    public boolean isForumMember(Long forumId, Long userId) {
+        return forumMemberRepository.existsByDiscussionIdAndUserId(forumId, userId);
     }
 }
