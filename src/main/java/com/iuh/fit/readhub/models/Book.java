@@ -32,8 +32,6 @@ public class Book {
     private String externalApiId;
     private String format;
 
-    @OneToMany(mappedBy = "book")
-    private Set<Rating> ratings;
 
     @OneToMany(mappedBy = "book")
     private Set<BookCategory> bookCategories;
@@ -63,7 +61,6 @@ public class Book {
                 ", coverImage='" + coverImage + '\'' +
                 ", externalApiId='" + externalApiId + '\'' +
                 ", format='" + format + '\'' +
-                ", ratings=" + ratings +
                 ", bookCategories=" + bookCategories +
                 ", bookTags=" + bookTags +
                 ", userBookProgresses=" + userBookProgresses +

@@ -25,7 +25,7 @@ public class WebSecurityConfig {
                 .csrf(csrf -> csrf.disable())
 
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/api/v1/authen/**", "/api/v1/book/**").permitAll()
+                        .requestMatchers("/api/v1/authen/**", "/api/v1/book/**","/api/v1/review/book/*").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

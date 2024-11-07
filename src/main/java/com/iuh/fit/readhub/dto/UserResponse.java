@@ -11,6 +11,7 @@ import lombok.*;
 public class UserResponse {
     private Long userId;
     private String username;
+    private String displayName;
     private String email;
     private String role;
     private String urlAvatar;

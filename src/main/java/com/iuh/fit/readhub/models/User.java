@@ -1,18 +1,14 @@
 package com.iuh.fit.readhub.models;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.LocalDateTime;
 import java.util.Set;
 
 @AllArgsConstructor
 @NoArgsConstructor
-@Getter
-@Setter
+@Data
 @Entity
 @Table(name = "User")
 public class User {
@@ -22,6 +18,9 @@ public class User {
 
     @Column(unique = true, nullable = false)
     private String username;
+
+    @Column(name = "full_name")
+    private String fullName;
 
     @Column(nullable = false)
     private String password;
@@ -45,9 +44,6 @@ public class User {
     private Set<Discussion> discussions;
 
     @OneToMany(mappedBy = "user")
-    private Set<Rating> ratings;
-
-    @OneToMany(mappedBy = "user")
     private Set<ReadingHistory> readingHistories;
 
     @OneToMany(mappedBy = "user")
@@ -59,22 +55,8 @@ public class User {
     @OneToMany(mappedBy = "user")
     private Set<UserGenrePreference> userGenrePreferences;
 
-    @Override
-    public String toString() {
-        return "User{" +
-                "userId=" + userId +
-                ", username='" + username + '\'' +
-                ", password='" + password + '\'' +
-                ", email='" + email + '\'' +
-                ", role=" + role +
-                ", createdAt=" + createdAt +
-                ", discussions=" + discussions +
-                ", ratings=" + ratings +
-                ", readingHistories=" + readingHistories +
-                ", recommendations=" + recommendations +
-                ", userBookProgresses=" + userBookProgresses +
-                ", userGenrePreferences=" + userGenrePreferences +
-                '}';
-    }
+    @OneToMany(mappedBy = "user")
+    private Set<Review> reviews;
+
 }
 
