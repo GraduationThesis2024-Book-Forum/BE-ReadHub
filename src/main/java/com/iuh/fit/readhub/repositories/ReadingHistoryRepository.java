@@ -12,8 +12,7 @@ public interface ReadingHistoryRepository extends JpaRepository<ReadingHistory, 
     @Query(value = "SELECT *   " +
             "FROM reading_history n WHERE n.user_id = ?1 AND n.book_id = ?2", nativeQuery = true)
     ReadingHistory findByUserIdAndBookId(Long userId, Long bookId);
-
-    List<ReadingHistory> findByUser(User user);
+    List<ReadingHistory> findByUser_UserIdOrderByUpdatedAtDesc(Long userId);
     List<ReadingHistory> findByUser_UserId(Long userId);
 
 }

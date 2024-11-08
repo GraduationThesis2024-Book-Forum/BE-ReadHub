@@ -66,7 +66,7 @@ public class CommentService {
         UserDTO userDTO = UserDTO.builder()
                 .userId(comment.getUser().getUserId())
                 .username(comment.getUser().getUsername())
-                .displayName(comment.getUser().getFullName())
+                .fullName(comment.getUser().getFullName())
                 .email(comment.getUser().getEmail())
                 .urlAvatar(comment.getUser().getUrlAvatar())
                 .role(comment.getUser().getRole())
