@@ -13,6 +13,4 @@ public class ReviewRequest {
     private Long userId;
     private Integer rating;
     private String review;
-    private boolean isAnonymous;
-    private String displayName;
 }
