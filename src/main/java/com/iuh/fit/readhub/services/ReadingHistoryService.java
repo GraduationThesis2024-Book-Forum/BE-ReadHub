@@ -37,7 +37,7 @@ public class ReadingHistoryService {
     }
 
     public List<Long> getReadingHistoryIdsByUserId(Long userId) {
-        return readingHistoryRepository.findByUser(userRepository.findById(userId).get())
+        return readingHistoryRepository.findByUser_UserIdOrderByUpdatedAtDesc(userId)
                 .stream()
                 .map(ReadingHistory::getBookId)
                 .toList();

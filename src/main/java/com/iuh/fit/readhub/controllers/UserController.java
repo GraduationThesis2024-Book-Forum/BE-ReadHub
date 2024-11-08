@@ -2,6 +2,7 @@ package com.iuh.fit.readhub.controllers;
 
 import com.iuh.fit.readhub.dto.ApiResponse;
 import com.iuh.fit.readhub.dto.UserResponse;
+import com.iuh.fit.readhub.dto.request.UserRequest;
 import com.iuh.fit.readhub.models.User;
 import com.iuh.fit.readhub.repositories.UserRepository;
 import com.iuh.fit.readhub.security.JwtUtil;
@@ -13,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Optional;
@@ -67,6 +69,7 @@ public class UserController {
                     .userId(user.getUserId())
                     .email(user.getEmail())
                     .username(user.getUsername())
+                    .fullName(user.getFullName())
                     .role(user.getRole().toString())
                     .urlAvatar(user.getUrlAvatar())
                     .build();
@@ -80,19 +83,47 @@ public class UserController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ROLE_ADMIṆ') || hasRole('ROLE_USER')")
-    public ResponseEntity<?> updateUser(@PathVariable String id, @RequestBody User user) {
+    public ResponseEntity<?> updateUser(@PathVariable Long id, @RequestBody UserRequest userRequest) {
+        try {
+            Optional<User> userOptional = userRepository.findById(id);
+            if (!userOptional.isPresent()) {
+                return new ResponseEntity<>("Người dùng không tồn tại", HttpStatus.NOT_FOUND);
+            }
+            User userUpdate = userOptional.get();
+            userUpdate.setFullName(userRequest.getFullName());
+            userUpdate.setUsername(userRequest.getUsername());
+            userRepository.save(userUpdate);
+            return new ResponseEntity<>("Cập nhật người dùng thành công", HttpStatus.OK);
+        } catch (Exception e) {
+            return new ResponseEntity<>("Có lỗi xảy ra: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    public ResponseEntity<?> deleteUser(@PathVariable String id) {
         try {
             Optional<User> userOptional = userRepository.findById(Long.valueOf(id));
             if (!userOptional.isPresent()) {
                 return new ResponseEntity<>("Người dùng không tồn tại", HttpStatus.NOT_FOUND);
             }
-            User userUpdate = userOptional.get();
-            userUpdate.setEmail(user.getEmail());
-            userUpdate.setUsername(user.getUsername());
-            userUpdate.setUrlAvatar(user.getUrlAvatar());
-            userUpdate.setRole(user.getRole());
-            userRepository.save(userUpdate);
-            return new ResponseEntity<>("Cập nhật người dùng thành công", HttpStatus.OK);
+            userRepository.delete(userOptional.get());
+            return new ResponseEntity<>("Xóa người dùng thành công", HttpStatus.OK);
+        } catch (Exception e) {
+            return new ResponseEntity<>("Có lỗi xảy ra: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    //upload avatar lên s3 và db
+    @PostMapping("/{userId}/upload-avatar")
+    @PreAuthorize("hasRole('ROLE_ADMIṆ') || hasRole('ROLE_USER')")
+    public ResponseEntity<?> uploadAvatar(@ModelAttribute MultipartFile avatar, @PathVariable Long userId) {
+        try {
+            User user = userRepository.findById(userId).get();
+            String urlAvatar = userService.uploadAvatar(avatar);
+            user.setUrlAvatar(urlAvatar);
+            userRepository.save(user);
+            return new ResponseEntity<>("Upload avatar thành công", HttpStatus.OK);
         } catch (Exception e) {
             return new ResponseEntity<>("Có lỗi xảy ra: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
