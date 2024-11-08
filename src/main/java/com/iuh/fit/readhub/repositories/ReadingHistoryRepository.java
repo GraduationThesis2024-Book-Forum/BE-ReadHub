@@ -14,4 +14,6 @@ public interface ReadingHistoryRepository extends JpaRepository<ReadingHistory, 
     ReadingHistory findByUserIdAndBookId(Long userId, Long bookId);
 
     List<ReadingHistory> findByUser(User user);
+    List<ReadingHistory> findByUser_UserId(Long userId);
+
 }
