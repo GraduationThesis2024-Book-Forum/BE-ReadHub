@@ -2,6 +2,7 @@ package com.iuh.fit.readhub.controllers;
 
 import com.iuh.fit.readhub.dto.ApiResponse;
 import com.iuh.fit.readhub.dto.CommentDTO;
+import com.iuh.fit.readhub.dto.ForumDTO;
 import com.iuh.fit.readhub.dto.request.ForumRequest;
 import com.iuh.fit.readhub.models.Discussion;
 import com.iuh.fit.readhub.models.User;
@@ -28,6 +29,25 @@ public class ForumController {
     private UserService userService;
     @Autowired
     private CommentService commentService;
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<?>> getAllForums() {
+        try {
+            List<ForumDTO> forums = forumService.getAllForums();
+            return ResponseEntity.ok(ApiResponse.builder()
+                    .message("Lấy danh sách diễn đàn thành công")
+                    .status(200)
+                    .data(forums)
+                    .success(true)
+                    .build());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.builder()
+                    .message("Lỗi khi lấy danh sách diễn đàn: " + e.getMessage())
+                    .status(400)
+                    .success(false)
+                    .build());
+        }
+    }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ROLE_ADMIN') || hasRole('ROLE_USER')")
