@@ -1,7 +1,9 @@
 package com.iuh.fit.readhub.services;
 
+import com.iuh.fit.readhub.dto.ForumDTO;
 import com.iuh.fit.readhub.dto.request.ForumRequest;
 import com.iuh.fit.readhub.exceptions.ForumException;
+import com.iuh.fit.readhub.mapper.UserMapper;
 import com.iuh.fit.readhub.models.Discussion;
 import com.iuh.fit.readhub.models.ForumMember;
 import com.iuh.fit.readhub.models.User;
@@ -25,21 +27,25 @@ import java.util.stream.Collectors;
 public class ForumService {
 
     private final ForumRepository forumRepository;
-
     private final ForumMemberRepository forumMemberRepository;
+    private final UserMapper userMapper;
+    private final S3Service s3Service;
 
-    @Value("${app.upload.dir:uploads/forums}")
-    private String uploadDir;
 
-    public ForumService(ForumRepository forumRepository, ForumMemberRepository forumMemberRepository) {
+    public ForumService(ForumRepository forumRepository,
+                        ForumMemberRepository forumMemberRepository,
+                        UserMapper userMapper,
+                        S3Service s3Service) {
         this.forumRepository = forumRepository;
         this.forumMemberRepository = forumMemberRepository;
+        this.userMapper = userMapper;
+        this.s3Service = s3Service;
     }
 
-    public Discussion createForum(ForumRequest request, User creator) throws IOException {
+    public Discussion createForum(ForumRequest request, User creator) {
         String imageUrl = null;
         if (request.getForumImage() != null && !request.getForumImage().isEmpty()) {
-            imageUrl = saveImage(request.getForumImage());
+            imageUrl = s3Service.uploadFile(request.getForumImage());
         }
 
         Discussion forum = Discussion.builder()
@@ -57,21 +63,16 @@ public class ForumService {
         return forumRepository.save(forum);
     }
 
-    private String saveImage(MultipartFile file) throws IOException {
-        // Create upload directory if it doesn't exist
-        Path uploadPath = Paths.get(uploadDir);
-        if (!Files.exists(uploadPath)) {
-            Files.createDirectories(uploadPath);
+    // Thêm method để update forum image nếu cần
+    public void updateForumImage(Long forumId, MultipartFile newImage) {
+        Discussion forum = forumRepository.findById(forumId)
+                .orElseThrow(() -> new ForumException("Diễn đàn không tồn tại"));
+        if (forum.getImageUrl() != null) {
+            s3Service.deleteFile(forum.getImageUrl());
         }
-
-        // Generate unique filename
-        String filename = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
-        Path filePath = uploadPath.resolve(filename);
-
-        // Save file
-        Files.copy(file.getInputStream(), filePath);
-
-        return filename;
+        String newImageUrl = s3Service.uploadFile(newImage);
+        forum.setImageUrl(newImageUrl);
+        forumRepository.save(forum);
     }
 
     @Transactional
@@ -110,5 +111,31 @@ public class ForumService {
     // Thêm method để kiểm tra user có phải là thành viên
     public boolean isForumMember(Long forumId, Long userId) {
         return forumMemberRepository.existsByDiscussion_DiscussionIdAndUser_UserId(forumId, userId);
+    }
+
+    public List<ForumDTO> getAllForums() {
+        List<Discussion> forums = forumRepository.findAll();
+        return forums.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    private ForumDTO convertToDTO(Discussion discussion) {
+        return ForumDTO.builder()
+                .discussionId(discussion.getDiscussionId())
+                .forumTitle(discussion.getForumTitle())
+                .forumDescription(discussion.getForumDescription())
+                .imageUrl(discussion.getImageUrl())
+                .bookTitle(discussion.getBookTitle())
+                .authors(discussion.getAuthors())
+                .subjects(discussion.getSubjects())
+                .categories(discussion.getCategories())
+                .creator(userMapper.toDTO(discussion.getCreator()))
+                .totalMembers(discussion.getMembers().size())
+                .totalPosts(discussion.getComments().size())
+                .createdAt(discussion.getCreatedAt())
+                .updatedAt(discussion.getUpdatedAt())
+                .trending(discussion.getComments().size() > 10) // Example logic for trending
+                .build();
     }
 }
