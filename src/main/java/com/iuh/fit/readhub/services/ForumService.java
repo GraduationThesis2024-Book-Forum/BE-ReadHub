@@ -124,4 +124,10 @@ public class ForumService {
             return false;
         }
     }
+
+    public ForumDTO getForumById(Long forumId) {
+        Discussion forum = forumRepository.findById(forumId)
+                .orElseThrow(() -> new ForumException("Không tìm thấy diễn đàn"));
+        return convertToDTO(forum);
+    }
 }
