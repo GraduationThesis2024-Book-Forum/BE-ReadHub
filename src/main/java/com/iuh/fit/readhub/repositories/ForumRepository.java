@@ -1,6 +1,7 @@
 package com.iuh.fit.readhub.repositories;
 
 import com.iuh.fit.readhub.models.Discussion;
+import jakarta.transaction.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -13,5 +14,6 @@ import java.util.Optional;
 public interface ForumRepository extends JpaRepository<Discussion, Long> {
     @Modifying
     @Query(value = "SELECT * FROM discussion WHERE discussion_id = :id FOR UPDATE", nativeQuery = true)
-    Optional<Discussion> refreshAndLock(@Param("id") Long id);
+    @Transactional
+    int lockDiscussion(@Param("id") Long id);
 }

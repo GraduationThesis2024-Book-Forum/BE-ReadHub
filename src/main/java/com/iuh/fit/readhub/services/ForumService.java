@@ -19,18 +19,17 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
 public class ForumService {
-
     private final ForumRepository forumRepository;
     private final ForumMemberRepository forumMemberRepository;
     private final UserMapper userMapper;
     private final S3Service s3Service;
-
 
     public ForumService(ForumRepository forumRepository,
                         ForumMemberRepository forumMemberRepository,
@@ -42,7 +41,8 @@ public class ForumService {
         this.s3Service = s3Service;
     }
 
-    public Discussion createForum(ForumRequest request, User creator) {
+    @Transactional
+    public ForumDTO createForum(ForumRequest request, User creator) {
         String imageUrl = null;
         if (request.getForumImage() != null && !request.getForumImage().isEmpty()) {
             imageUrl = s3Service.uploadFile(request.getForumImage());
@@ -60,23 +60,12 @@ public class ForumService {
                 .creator(creator)
                 .build();
 
-        return forumRepository.save(forum);
-    }
-
-    // Thêm method để update forum image nếu cần
-    public void updateForumImage(Long forumId, MultipartFile newImage) {
-        Discussion forum = forumRepository.findById(forumId)
-                .orElseThrow(() -> new ForumException("Diễn đàn không tồn tại"));
-        if (forum.getImageUrl() != null) {
-            s3Service.deleteFile(forum.getImageUrl());
-        }
-        String newImageUrl = s3Service.uploadFile(newImage);
-        forum.setImageUrl(newImageUrl);
-        forumRepository.save(forum);
+        Discussion savedForum = forumRepository.save(forum);
+        return convertToDTO(savedForum);
     }
 
     @Transactional
-    public Discussion joinForum(Long forumId, User user) {
+    public ForumDTO joinForum(Long forumId, User user) {
         Discussion discussion = forumRepository.findById(forumId)
                 .orElseThrow(() -> new ForumException("Diễn đàn không tồn tại"));
 
@@ -93,34 +82,23 @@ public class ForumService {
 
         forumMemberRepository.save(member);
 
-        // Refresh discussion để lấy danh sách members mới nhất
-        forumRepository.refreshAndLock(forumId);
+        // Refresh và convert to DTO
+        Discussion updatedDiscussion = forumRepository.findById(forumId)
+                .orElseThrow(() -> new ForumException("Không thể cập nhật thông tin diễn đàn"));
 
-        return discussion;
-    }
-
-    public List<User> getForumMembers(Long forumId) {
-        Discussion discussion = forumRepository.findById(forumId)
-                .orElseThrow(() -> new ForumException("Diễn đàn không tồn tại"));
-
-        return discussion.getMembers().stream()
-                .map(ForumMember::getUser)
-                .collect(Collectors.toList());
-    }
-
-    // Thêm method để kiểm tra user có phải là thành viên
-    public boolean isForumMember(Long forumId, Long userId) {
-        return forumMemberRepository.existsByDiscussion_DiscussionIdAndUser_UserId(forumId, userId);
+        return convertToDTO(updatedDiscussion);
     }
 
     public List<ForumDTO> getAllForums() {
-        List<Discussion> forums = forumRepository.findAll();
-        return forums.stream()
+        return forumRepository.findAll().stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
     private ForumDTO convertToDTO(Discussion discussion) {
+        // Tối ưu hóa việc lấy số lượng
+        long membersCount = forumMemberRepository.countByDiscussion_DiscussionId(discussion.getDiscussionId());
+
         return ForumDTO.builder()
                 .discussionId(discussion.getDiscussionId())
                 .forumTitle(discussion.getForumTitle())
@@ -128,14 +106,14 @@ public class ForumService {
                 .imageUrl(discussion.getImageUrl())
                 .bookTitle(discussion.getBookTitle())
                 .authors(discussion.getAuthors())
-                .subjects(discussion.getSubjects())
-                .categories(discussion.getCategories())
+                .subjects(discussion.getSubjects() != null ? new ArrayList<>(discussion.getSubjects()) : new ArrayList<>())
+                .categories(discussion.getCategories() != null ? new ArrayList<>(discussion.getCategories()) : new ArrayList<>())
                 .creator(userMapper.toDTO(discussion.getCreator()))
-                .totalMembers(discussion.getMembers().size())
-                .totalPosts(discussion.getComments().size())
+                .totalMembers((int) membersCount)
+                .totalPosts(discussion.getComments() != null ? discussion.getComments().size() : 0)
                 .createdAt(discussion.getCreatedAt())
                 .updatedAt(discussion.getUpdatedAt())
-                .trending(discussion.getComments().size() > 10) // Example logic for trending
+                .trending(discussion.getComments() != null && discussion.getComments().size() > 10)
                 .build();
     }
 }
