@@ -6,31 +6,30 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Entity
-@Table(name = "review")
+@Table(name = "review_react")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Review {
+public class ReviewReact {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long reviewId;
+    private Long id;
+
+    @ManyToOne
+    @JoinColumn(name = "review_id")
+    private Review review;
 
     @ManyToOne
     @JoinColumn(name = "user_id")
     private User user;
 
     @Column(nullable = false)
-    private Long bookId;
+    private boolean isLike = false;
 
     @Column(nullable = false)
-    private Integer rating;
-
-    @Column(length = 1000)
-    private String review;
+    private boolean isReport = false;
 
     @CreatedDate
     @Column(nullable = false, updatable = false)
@@ -39,9 +38,4 @@ public class Review {
     @LastModifiedDate
     @Column(nullable = false)
     private LocalDateTime updatedAt;
-
-    // Thêm mối quan hệ với ReviewReact
-    @OneToMany(mappedBy = "review", cascade = CascadeType.ALL)
-    private List<ReviewReact> reviewReacts = new ArrayList<>(); // Initialize empty list
 }
-
