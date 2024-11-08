@@ -139,4 +139,23 @@ public class ForumController {
                     .build());
         }
     }
+
+    @GetMapping("/{forumId}")
+    public ResponseEntity<ApiResponse<?>> getForumById(@PathVariable Long forumId) {
+        try {
+            ForumDTO forum = forumService.getForumById(forumId);
+            return ResponseEntity.ok(ApiResponse.builder()
+                    .message("Lấy thông tin diễn đàn thành công")
+                    .status(200)
+                    .data(forum)
+                    .success(true)
+                    .build());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.builder()
+                    .message("Lỗi khi lấy thông tin diễn đàn: " + e.getMessage())
+                    .status(400)
+                    .success(false)
+                    .build());
+        }
+    }
 }
