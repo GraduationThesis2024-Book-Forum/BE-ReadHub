@@ -32,11 +32,11 @@ public class ReadingHistoryController {
 
     @GetMapping("user/{userId}")
     @PreAuthorize("hasRole('ROLE_ADMIṆ') || hasRole('ROLE_USER')")
-    public ResponseEntity<ApiResponse<?>> getReadingHistoryByUserId(@RequestBody Long userId) {
+    public ResponseEntity<ApiResponse<?>> getReadingHistoryByUserId(@PathVariable Long userId) {
         return ResponseEntity.ok(ApiResponse.builder()
                 .message("Lấy lịch sử đọc sách thành công")
                 .status(200)
-                .data(readingHistoryService.getReadingHistoryByUserId(userId))
+                .data(readingHistoryService.getReadingHistoryIdsByUserId(userId))
                 .success(true)
                 .build());
     }
