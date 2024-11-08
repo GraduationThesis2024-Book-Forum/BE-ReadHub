@@ -25,6 +25,7 @@ public class CommentService {
     private final ForumRepository forumRepository;
     private final UserService userService;
     private final UserMapper userMapper;
+    private final S3Service s3Service;
 
     @Transactional
     public CommentDTO createComment(CommentMessage message, Authentication authentication) {
@@ -32,8 +33,14 @@ public class CommentService {
         Discussion discussion = forumRepository.findById(message.getDiscussionId())
                 .orElseThrow(() -> new RuntimeException("Forum not found"));
 
+        String imageUrl = null;
+        if (message.getImage() != null && !message.getImage().isEmpty()) {
+            imageUrl = s3Service.uploadFile(message.getImage());
+        }
+
         Comment comment = Comment.builder()
                 .content(message.getContent())
+                .imageUrl(imageUrl)
                 .discussion(discussion)
                 .user(user)
                 .build();

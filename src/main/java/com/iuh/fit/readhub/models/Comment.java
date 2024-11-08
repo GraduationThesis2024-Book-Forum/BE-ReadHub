@@ -28,6 +28,9 @@ public class Comment {
     @Column(nullable = false)
     private String content;
 
+    @JoinColumn(name = "image_url")
+    private String imageUrl;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

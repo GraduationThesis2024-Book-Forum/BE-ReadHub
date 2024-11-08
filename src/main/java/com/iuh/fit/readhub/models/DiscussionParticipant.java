@@ -29,8 +29,6 @@ public class DiscussionParticipant {
     @Enumerated(EnumType.STRING)
     private DiscussionStatus status;
 
-
-
     @Override
     public String toString() {
         return "DiscussionParticipant{" +
