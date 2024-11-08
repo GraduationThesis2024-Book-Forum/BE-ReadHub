@@ -36,8 +36,10 @@ public class ReadingHistoryService {
         readingHistoryRepository.save(history);
     }
 
-
-    public List<ReadingHistory> getReadingHistoryByUserId(Long userId) {
-        return readingHistoryRepository.findByUser(userRepository.findById(userId).get());
+    public List<Long> getReadingHistoryIdsByUserId(Long userId) {
+        return readingHistoryRepository.findByUser(userRepository.findById(userId).get())
+                .stream()
+                .map(ReadingHistory::getBookId)
+                .toList();
     }
 }
