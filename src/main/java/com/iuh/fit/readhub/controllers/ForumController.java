@@ -115,4 +115,28 @@ public class ForumController {
                     .build());
         }
     }
+
+    @GetMapping("/{forumId}/membership")
+    @PreAuthorize("hasRole('ROLE_USER')")
+    public ResponseEntity<ApiResponse<?>> checkMembership(
+            @PathVariable Long forumId,
+            Authentication authentication) {
+        try {
+            User user = userService.getCurrentUser(authentication);
+            boolean isMember = forumService.isForumMember(forumId, user.getUserId());
+
+            return ResponseEntity.ok(ApiResponse.builder()
+                    .message("Kiểm tra thành viên thành công")
+                    .status(200)
+                    .data(isMember)
+                    .success(true)
+                    .build());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.builder()
+                    .message("Lỗi khi kiểm tra thành viên: " + e.getMessage())
+                    .status(400)
+                    .success(false)
+                    .build());
+        }
+    }
 }
