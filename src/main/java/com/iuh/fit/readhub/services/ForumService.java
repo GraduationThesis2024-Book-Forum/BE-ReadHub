@@ -116,4 +116,12 @@ public class ForumService {
                 .trending(discussion.getComments() != null && discussion.getComments().size() > 10)
                 .build();
     }
+
+    public boolean isForumMember(Long forumId, Long userId) {
+        try {
+            return forumMemberRepository.existsByDiscussion_DiscussionIdAndUser_UserId(forumId, userId);
+        } catch (Exception e) {
+            return false;
+        }
+    }
 }
