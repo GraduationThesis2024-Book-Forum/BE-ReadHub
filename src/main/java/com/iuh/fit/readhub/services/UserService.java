@@ -14,8 +14,9 @@ public class UserService {
     private final UserRepository userRepository;
 
     public User getCurrentUser(Authentication authentication) {
-        String email = authentication.getName();
-        User user = userRepository.findByEmail(email).orElse(null);
+        User user = userRepository.findByEmailIgnoreCase(authentication.getName())
+                .orElseGet(() -> userRepository.findByUsernameIgnoreCase(authentication.getName())
+                        .orElseThrow(() -> new RuntimeException("Không tìm thấy thông tin người dùng")));
         return user;
     }
 }

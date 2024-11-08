@@ -56,7 +56,7 @@ public class ForumController {
             Authentication authentication) {
         try {
             User creator = userService.getCurrentUser(authentication);
-            Discussion createdForum = forumService.createForum(request, creator);
+            ForumDTO createdForum = forumService.createForum(request, creator);
 
             return ResponseEntity.ok(ApiResponse.builder()
                     .message("Tạo diễn đàn thành công")
@@ -99,7 +99,7 @@ public class ForumController {
             Authentication authentication) {
         try {
             User user = userService.getCurrentUser(authentication);
-            Discussion forum = forumService.joinForum(forumId, user);
+            ForumDTO forum = forumService.joinForum(forumId, user);
 
             return ResponseEntity.ok(ApiResponse.builder()
                     .message("Tham gia diễn đàn thành công")
