@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 public class CommentDTO {
     private Long id;
     private String content;
+    private String imageUrl;
     private Long discussionId;
     private UserDTO user;
     private LocalDateTime createdAt;
