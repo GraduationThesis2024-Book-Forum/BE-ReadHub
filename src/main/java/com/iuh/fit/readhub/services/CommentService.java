@@ -1,16 +1,18 @@
 package com.iuh.fit.readhub.services;
 
 import com.iuh.fit.readhub.dto.CommentDTO;
+import com.iuh.fit.readhub.dto.CommentDiscussionReplyDTO;
 import com.iuh.fit.readhub.dto.UserDTO;
 import com.iuh.fit.readhub.dto.message.CommentMessage;
 import com.iuh.fit.readhub.mapper.UserMapper;
-import com.iuh.fit.readhub.models.Comment;
-import com.iuh.fit.readhub.models.Discussion;
-import com.iuh.fit.readhub.models.User;
+import com.iuh.fit.readhub.models.*;
+import com.iuh.fit.readhub.repositories.CommentDiscussionLikeRepository;
+import com.iuh.fit.readhub.repositories.CommentDiscussionReplyRepository;
 import com.iuh.fit.readhub.repositories.CommentRepository;
 import com.iuh.fit.readhub.repositories.ForumRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,10 +28,12 @@ public class CommentService {
     private final UserService userService;
     private final UserMapper userMapper;
     private final S3Service s3Service;
+    private final CommentDiscussionLikeRepository commentDiscussionLikeRepository;
+    private final CommentDiscussionReplyRepository commentDiscussionReplyRepository;
 
     @Transactional
     public CommentDTO createComment(CommentMessage message, Authentication authentication) {
-        User user = userService.getCurrentUser(authentication);
+        User currentUser = userService.getCurrentUser(authentication);
         Discussion discussion = forumRepository.findById(message.getDiscussionId())
                 .orElseThrow(() -> new RuntimeException("Forum not found"));
 
@@ -37,21 +41,80 @@ public class CommentService {
                 .content(message.getContent())
                 .imageUrl(message.getImageUrl())
                 .discussion(discussion)
-                .user(user)
+                .user(currentUser)
                 .build();
 
         Comment savedComment = commentRepository.save(comment);
-        return convertToDTO(savedComment);
+        return convertToDTO(savedComment, currentUser);
     }
 
     public List<CommentDTO> getForumComments(Long forumId) {
         List<Comment> comments = commentRepository.findByDiscussion_DiscussionIdOrderByCreatedAtDesc(forumId);
+
+        User currentUser = null;
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication != null && authentication.isAuthenticated()) {
+                currentUser = userService.getCurrentUser(authentication);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        final User finalCurrentUser = currentUser;
         return comments.stream()
-                .map(this::convertToDTO)
+                .map(comment -> convertToDTO(comment, finalCurrentUser))
                 .collect(Collectors.toList());
     }
 
-    private CommentDTO convertToDTO(Comment comment) {
+    @Transactional
+    public boolean toggleLike(Long commentId, Authentication authentication) {
+        User user = userService.getCurrentUser(authentication);
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new RuntimeException("Comment not found"));
+
+        boolean exists = commentDiscussionLikeRepository.existsByCommentAndUser(comment, user);
+        if (exists) {
+            commentDiscussionLikeRepository.deleteByCommentAndUser(comment, user);
+            return false;
+        } else {
+            CommentDiscussionLike like = CommentDiscussionLike.builder()
+                    .comment(comment)
+                    .user(user)
+                    .build();
+            commentDiscussionLikeRepository.save(like);
+            return true;
+        }
+    }
+
+    @Transactional
+    public CommentDiscussionReplyDTO createReply(Long commentId, String content, String imageUrl, Authentication authentication) {
+        User user = userService.getCurrentUser(authentication);
+        Comment parentComment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new RuntimeException("Comment not found"));
+
+        CommentDiscussionReply reply = CommentDiscussionReply.builder()
+                .parentComment(parentComment)
+                .user(user)
+                .content(content)
+                .imageUrl(imageUrl)
+                .build();
+
+        CommentDiscussionReply savedReply = commentDiscussionReplyRepository.save(reply);
+        return convertToReplyDTO(savedReply);
+    }
+
+    private CommentDiscussionReplyDTO convertToReplyDTO(CommentDiscussionReply reply) {
+        CommentDiscussionReplyDTO dto = new CommentDiscussionReplyDTO();
+        dto.setId(reply.getId());
+        dto.setParentCommentId(reply.getParentComment().getCommentId());
+        dto.setContent(reply.getContent());
+        dto.setImageUrl(reply.getImageUrl());
+        dto.setUser(userMapper.toDTO(reply.getUser()));
+        dto.setCreatedAt(reply.getCreatedAt());
+        return dto;
+    }
+
+    private CommentDTO convertToDTO(Comment comment, User currentUser) {
         CommentDTO dto = new CommentDTO();
         dto.setId(comment.getCommentId());
         dto.setContent(comment.getContent());
@@ -70,6 +133,20 @@ public class CommentService {
                 .build();
 
         dto.setUser(userDTO);
+
+        dto.setLikeCount((int) commentDiscussionLikeRepository.countByComment(comment));
+        dto.setLikedByCurrentUser(
+                currentUser != null &&
+                        commentDiscussionLikeRepository.existsByCommentAndUser(comment, currentUser)
+        );
+
+        // Add replies
+        List<CommentDiscussionReplyDTO> replies = commentDiscussionReplyRepository
+                .findByParentCommentOrderByCreatedAtDesc(comment)
+                .stream()
+                .map(this::convertToReplyDTO)
+                .collect(Collectors.toList());
+        dto.setReplies(replies);
         return dto;
     }
 }

@@ -1,6 +1,9 @@
 package com.iuh.fit.readhub.controllers;
 
 import com.iuh.fit.readhub.dto.CommentDTO;
+import com.iuh.fit.readhub.dto.CommentDiscussionReplyDTO;
+import com.iuh.fit.readhub.dto.message.CommentDiscussionLikeMessage;
+import com.iuh.fit.readhub.dto.message.CommentDiscussionReplyMessage;
 import com.iuh.fit.readhub.dto.message.CommentMessage;
 import com.iuh.fit.readhub.services.CommentService;
 import lombok.RequiredArgsConstructor;
@@ -43,5 +46,47 @@ public class WebSocketCommentController {
                     )
             );
         }
+    }
+
+    @MessageMapping("/comment/like")
+    public void handleLike(@Payload CommentDiscussionLikeMessage message,
+                           SimpMessageHeaderAccessor headerAccessor) {
+        try {
+            Principal user = headerAccessor.getUser();
+            if (user instanceof Authentication auth && auth.isAuthenticated()) {
+                boolean isLiked = commentService.toggleLike(message.getCommentId(), auth);
+                messagingTemplate.convertAndSend(
+                        "/topic/comment/" + message.getCommentId() + "/like",
+                        Map.of("liked", isLiked)
+                );
+            }
+        } catch (Exception e) {
+            handleError(message.getCommentId(), e);
+        }
+    }
+
+    @MessageMapping("/comment/reply")
+    public void handleReply(@Payload CommentDiscussionReplyMessage message,
+                            SimpMessageHeaderAccessor headerAccessor) {
+        try {
+            Principal user = headerAccessor.getUser();
+            if (user instanceof Authentication auth && auth.isAuthenticated()) {
+                CommentDiscussionReplyDTO reply = commentService.createReply(
+                        message.getCommentId(),
+                        message.getContent(),
+                        message.getImageUrl(),
+                        auth
+                );
+                messagingTemplate.convertAndSend(
+                        "/topic/comment/" + message.getCommentId() + "/reply",
+                        reply
+                );
+            }
+        } catch (Exception e) {
+            handleError(message.getCommentId(), e);
+        }
+    }
+
+    private void handleError(Long commentId, Exception e) {
     }
 }
