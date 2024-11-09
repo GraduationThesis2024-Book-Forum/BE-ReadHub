@@ -7,5 +7,5 @@ import org.springframework.web.multipart.MultipartFile;
 public class CommentMessage {
     private String content;
     private Long discussionId;
-    private MultipartFile image;
+    private String imageUrl;
 }

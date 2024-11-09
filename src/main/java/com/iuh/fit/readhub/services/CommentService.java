@@ -33,14 +33,9 @@ public class CommentService {
         Discussion discussion = forumRepository.findById(message.getDiscussionId())
                 .orElseThrow(() -> new RuntimeException("Forum not found"));
 
-        String imageUrl = null;
-        if (message.getImage() != null && !message.getImage().isEmpty()) {
-            imageUrl = s3Service.uploadFile(message.getImage());
-        }
-
         Comment comment = Comment.builder()
                 .content(message.getContent())
-                .imageUrl(imageUrl)
+                .imageUrl(message.getImageUrl())
                 .discussion(discussion)
                 .user(user)
                 .build();
@@ -52,7 +47,7 @@ public class CommentService {
     public List<CommentDTO> getForumComments(Long forumId) {
         List<Comment> comments = commentRepository.findByDiscussion_DiscussionIdOrderByCreatedAtDesc(forumId);
         return comments.stream()
-                .map(this::toDTO)
+                .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
@@ -60,6 +55,7 @@ public class CommentService {
         CommentDTO dto = new CommentDTO();
         dto.setId(comment.getCommentId());
         dto.setContent(comment.getContent());
+        dto.setImageUrl(comment.getImageUrl());
         dto.setDiscussionId(comment.getDiscussion().getDiscussionId());
         dto.setCreatedAt(comment.getCreatedAt());
 
@@ -74,16 +70,6 @@ public class CommentService {
                 .build();
 
         dto.setUser(userDTO);
-        return dto;
-    }
-
-    private CommentDTO toDTO(Comment comment) {
-        CommentDTO dto = new CommentDTO();
-        dto.setId(comment.getCommentId());
-        dto.setContent(comment.getContent());
-        dto.setDiscussionId(comment.getDiscussion().getDiscussionId());
-        dto.setUser(userMapper.toDTO(comment.getUser()));
-        dto.setCreatedAt(comment.getCreatedAt());
         return dto;
     }
 }

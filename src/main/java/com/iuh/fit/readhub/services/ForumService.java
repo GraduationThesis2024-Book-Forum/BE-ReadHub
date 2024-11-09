@@ -90,7 +90,7 @@ public class ForumService {
     }
 
     public List<ForumDTO> getAllForums() {
-        return forumRepository.findAll().stream()
+        return forumRepository.findAllByOrderByCreatedAtDesc().stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
