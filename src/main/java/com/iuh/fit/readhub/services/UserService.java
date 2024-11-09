@@ -14,6 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class UserService {
     private final UserRepository userRepository;
     private final S3Service s3Service;
+    private final PasswordEncoder passwordEncoder;
 
     public User getCurrentUser(Authentication authentication) {
         User user = userRepository.findByEmailIgnoreCase(authentication.getName())
@@ -24,5 +25,15 @@ public class UserService {
 
     public String uploadAvatar(MultipartFile file) {
         return s3Service.uploadFile(file);
+    }
+//    reset password
+    public void resetPassword(Long userId, String password, String newPassword) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+        if (!passwordEncoder.matches(password, user.getPassword())) {
+            throw new RuntimeException("Mật khẩu cũ không đúng");
+        }
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
     }
 }

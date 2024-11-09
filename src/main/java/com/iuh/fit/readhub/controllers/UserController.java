@@ -2,6 +2,7 @@ package com.iuh.fit.readhub.controllers;
 
 import com.iuh.fit.readhub.dto.ApiResponse;
 import com.iuh.fit.readhub.dto.UserResponse;
+import com.iuh.fit.readhub.dto.request.ChangePasswordRequest;
 import com.iuh.fit.readhub.dto.request.UserRequest;
 import com.iuh.fit.readhub.models.User;
 import com.iuh.fit.readhub.repositories.UserRepository;
@@ -124,6 +125,17 @@ public class UserController {
             user.setUrlAvatar(urlAvatar);
             userRepository.save(user);
             return new ResponseEntity<>("Upload avatar thành công", HttpStatus.OK);
+        } catch (Exception e) {
+            return new ResponseEntity<>("Có lỗi xảy ra: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+//    reset password
+    @PutMapping("/{userId}/reset-password")
+    @PreAuthorize("hasRole('ROLE_ADMIṆ') || hasRole('ROLE_USER')")
+    public ResponseEntity<?> resetPassword(@PathVariable Long userId, @RequestBody ChangePasswordRequest changePasswordRequest) {
+        try {
+            userService.resetPassword(userId, changePasswordRequest.getPassword(), changePasswordRequest.getNewPassword());
+            return new ResponseEntity<>("Đổi mật khẩu thành công", HttpStatus.OK);
         } catch (Exception e) {
             return new ResponseEntity<>("Có lỗi xảy ra: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
