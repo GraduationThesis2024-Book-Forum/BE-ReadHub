@@ -1,44 +1,102 @@
 package com.iuh.fit.readhub.services;
 
 import com.iuh.fit.readhub.dto.ForumDTO;
+import com.iuh.fit.readhub.dto.ForumInteractionDTO;
 import com.iuh.fit.readhub.dto.request.ForumRequest;
 import com.iuh.fit.readhub.exceptions.ForumException;
 import com.iuh.fit.readhub.mapper.UserMapper;
-import com.iuh.fit.readhub.models.Discussion;
-import com.iuh.fit.readhub.models.ForumMember;
-import com.iuh.fit.readhub.models.User;
+import com.iuh.fit.readhub.models.*;
+import com.iuh.fit.readhub.repositories.ForumLikeRepository;
 import com.iuh.fit.readhub.repositories.ForumMemberRepository;
 import com.iuh.fit.readhub.repositories.ForumRepository;
+import com.iuh.fit.readhub.repositories.ForumSaveRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional
 public class ForumService {
     private final ForumRepository forumRepository;
     private final ForumMemberRepository forumMemberRepository;
     private final UserMapper userMapper;
     private final S3Service s3Service;
+    private final ForumLikeRepository forumLikeRepository;
+    private final ForumSaveRepository forumSaveRepository;
 
     public ForumService(ForumRepository forumRepository,
                         ForumMemberRepository forumMemberRepository,
                         UserMapper userMapper,
-                        S3Service s3Service) {
+                        S3Service s3Service, ForumLikeRepository forumLikeRepository, ForumSaveRepository forumSaveRepository) {
         this.forumRepository = forumRepository;
         this.forumMemberRepository = forumMemberRepository;
         this.userMapper = userMapper;
         this.s3Service = s3Service;
+        this.forumLikeRepository = forumLikeRepository;
+        this.forumSaveRepository = forumSaveRepository;
+    }
+
+    public ForumInteractionDTO toggleLike(Long forumId, User user) {
+        try {
+            Discussion discussion = forumRepository.findById(forumId)
+                    .orElseThrow(() -> new RuntimeException("Forum not found"));
+
+            boolean exists = forumLikeRepository.existsByDiscussionAndUser(discussion, user);
+            if (exists) {
+                forumLikeRepository.deleteByDiscussionAndUser(discussion, user);
+            } else {
+                ForumLike like = ForumLike.builder()
+                        .discussion(discussion)
+                        .user(user)
+                        .build();
+                forumLikeRepository.save(like);
+            }
+
+            return getForumInteractions(forumId, user);
+        } catch (Exception e) {
+            throw new ForumException("Không thể thực hiện thao tác này");
+        }
+
+    }
+
+    public ForumInteractionDTO toggleSave(Long forumId, User user) {
+        Discussion discussion = forumRepository.findById(forumId)
+                .orElseThrow(() -> new RuntimeException("Forum not found"));
+
+        boolean exists = forumSaveRepository.existsByDiscussionAndUser(discussion, user);
+        if (exists) {
+            forumSaveRepository.deleteByDiscussionAndUser(discussion, user);
+        } else {
+            ForumSave save = ForumSave.builder()
+                    .discussion(discussion)
+                    .user(user)
+                    .build();
+            forumSaveRepository.save(save);
+        }
+
+        return getForumInteractions(forumId, user);
+    }
+
+    public ForumInteractionDTO getForumInteractions(Long forumId, User user) {
+        Discussion discussion = forumRepository.findById(forumId)
+                .orElseThrow(() -> new RuntimeException("Forum not found"));
+
+        boolean isLiked = user != null &&
+                forumLikeRepository.existsByDiscussionAndUser(discussion, user);
+        boolean isSaved = user != null &&
+                forumSaveRepository.existsByDiscussionAndUser(discussion, user);
+        long likeCount = forumLikeRepository.countByDiscussion(discussion);
+
+        return ForumInteractionDTO.builder()
+                .isLiked(isLiked)
+                .isSaved(isSaved)
+                .likeCount(likeCount)
+                .build();
     }
 
     @Transactional

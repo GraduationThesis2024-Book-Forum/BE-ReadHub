@@ -16,6 +16,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Map;
 
 @Controller
@@ -88,5 +90,34 @@ public class WebSocketCommentController {
     }
 
     private void handleError(Long commentId, Exception e) {
+        // Create error response
+        Map<String, Object> errorResponse = new HashMap<>();
+        errorResponse.put("status", "error");
+        errorResponse.put("message", e.getMessage());
+        errorResponse.put("timestamp", LocalDateTime.now());
+        errorResponse.put("commentId", commentId);
+        // Send error message to specific error topic for this comment
+        messagingTemplate.convertAndSend(
+                "/topic/errors/comment/" + commentId,
+                errorResponse
+        );
+        // Send error message to general error topic
+        messagingTemplate.convertAndSend(
+                "/topic/errors",
+                errorResponse
+        );
+    }
+
+    // Optional: You can create different types of error handling for different scenarios
+    private void handleError(Long commentId, Exception e, String operation) {
+        Map<String, Object> errorResponse = new HashMap<>();
+        errorResponse.put("status", "error");
+        errorResponse.put("message", e.getMessage());
+        errorResponse.put("timestamp", LocalDateTime.now());
+        errorResponse.put("commentId", commentId);
+        errorResponse.put("operation", operation); // like, reply, etc.
+
+        String errorTopic = String.format("/topic/errors/comment/%d/%s", commentId, operation);
+        messagingTemplate.convertAndSend(errorTopic, errorResponse);
     }
 }

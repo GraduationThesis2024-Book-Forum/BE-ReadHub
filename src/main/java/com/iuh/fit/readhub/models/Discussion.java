@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -59,6 +60,12 @@ public class Discussion {
 
     @OneToMany
     private Set<DiscussionParticipant> discussionParticipants;
+
+    @OneToMany(mappedBy = "discussion", cascade = CascadeType.ALL)
+    private Set<ForumLike> likes = new HashSet<>();
+
+    @OneToMany(mappedBy = "discussion", cascade = CascadeType.ALL)
+    private Set<ForumSave> saves = new HashSet<>();
 
     @PrePersist
     protected void onCreate() {

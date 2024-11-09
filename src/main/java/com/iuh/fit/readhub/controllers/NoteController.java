@@ -30,7 +30,7 @@ public class NoteController {
     private UserRepository userRepository;
 
     @GetMapping
-    @PreAuthorize("hasRole('ROLE_ADMIṆ') || hasRole('ROLE_USER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<?>> getAllNote() {
         List<Note> notes = noteService.getAllNotes();
         if (notes.isEmpty()) {
@@ -50,7 +50,7 @@ public class NoteController {
     }
 //    getById
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ROLE_ADMIṆ') || hasRole('ROLE_USER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<?>> getNoteById(@PathVariable Long id) {
         Note note = noteService.getNoteById(id).get();
         return ResponseEntity.ok(ApiResponse.builder()
@@ -62,7 +62,7 @@ public class NoteController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ROLE_ADMIṆ') || hasRole('ROLE_USER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<?>> createNote(@RequestBody NoteRequest note) {
         Note newNote =new Note();
         newNote.setUser(userRepository.findById(note.getUserId()).get());
@@ -81,7 +81,7 @@ public class NoteController {
     }
 
     @GetMapping("/user/{userId}/book/{bookId}")
-    @PreAuthorize("hasRole('ROLE_ADMIṆ') || hasRole('ROLE_USER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<?>> getNoteByUserIdAndBookId(@PathVariable Long userId, @PathVariable Long bookId) {
         List<NoteProjection> notes = noteService.getNotesByUserIdAndBookId(userId, bookId);
         if (notes.isEmpty()) {
@@ -101,7 +101,7 @@ public class NoteController {
     }
 
     @PutMapping
-    @PreAuthorize("hasRole('ROLE_ADMIṆ') || hasRole('ROLE_USER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<?>> updateNote(@RequestBody NoteRequest note) {
         Note newNote = noteService.getNoteById(note.getNoteId()).get();
         newNote.setContent(note.getContent() != null ? note.getContent() : newNote.getContent());
@@ -116,7 +116,7 @@ public class NoteController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ROLE_ADMIṆ') || hasRole('ROLE_USER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<?>> deleteNoteById(@PathVariable Long id) {
         noteService.deleteNote(id);
         return ResponseEntity.ok(ApiResponse.builder()
@@ -125,7 +125,4 @@ public class NoteController {
                 .success(true)
                 .build());
     }
-
-
-
 }

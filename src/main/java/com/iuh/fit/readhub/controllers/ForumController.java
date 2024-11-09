@@ -3,6 +3,7 @@ package com.iuh.fit.readhub.controllers;
 import com.iuh.fit.readhub.dto.ApiResponse;
 import com.iuh.fit.readhub.dto.CommentDTO;
 import com.iuh.fit.readhub.dto.ForumDTO;
+import com.iuh.fit.readhub.dto.ForumInteractionDTO;
 import com.iuh.fit.readhub.dto.request.ForumRequest;
 import com.iuh.fit.readhub.models.Discussion;
 import com.iuh.fit.readhub.models.User;
@@ -93,7 +94,7 @@ public class ForumController {
     }
 
     @PostMapping("/{forumId}/join")
-    @PreAuthorize("hasRole('ROLE_USER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<?>> joinForum(
             @PathVariable Long forumId,
             Authentication authentication) {
@@ -117,7 +118,7 @@ public class ForumController {
     }
 
     @GetMapping("/{forumId}/membership")
-    @PreAuthorize("hasRole('ROLE_USER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<?>> checkMembership(
             @PathVariable Long forumId,
             Authentication authentication) {
@@ -153,6 +154,74 @@ public class ForumController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.builder()
                     .message("Lỗi khi lấy thông tin diễn đàn: " + e.getMessage())
+                    .status(400)
+                    .success(false)
+                    .build());
+        }
+    }
+
+    @PostMapping("/{forumId}/like")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<?>> toggleLike(
+            @PathVariable Long forumId,
+            Authentication authentication) {
+        try {
+            User user = userService.getCurrentUser(authentication);
+            ForumInteractionDTO result = forumService.toggleLike(forumId, user);
+            return ResponseEntity.ok(ApiResponse.builder()
+                    .message("Cập nhật like thành công")
+                    .status(200)
+                    .data(result)
+                    .success(true)
+                    .build());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.builder()
+                    .message("Lỗi khi cập nhật like: " + e.getMessage())
+                    .status(400)
+                    .success(false)
+                    .build());
+        }
+    }
+
+    @PostMapping("/{forumId}/save")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<?>> toggleSave(
+            @PathVariable Long forumId,
+            Authentication authentication) {
+        try {
+            User user = userService.getCurrentUser(authentication);
+            ForumInteractionDTO result = forumService.toggleSave(forumId, user);
+            return ResponseEntity.ok(ApiResponse.builder()
+                    .message("Cập nhật save thành công")
+                    .status(200)
+                    .data(result)
+                    .success(true)
+                    .build());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.builder()
+                    .message("Lỗi khi cập nhật save: " + e.getMessage())
+                    .status(400)
+                    .success(false)
+                    .build());
+        }
+    }
+
+    @GetMapping("/{forumId}/interactions")
+    public ResponseEntity<ApiResponse<?>> getInteractions(
+            @PathVariable Long forumId,
+            Authentication authentication) {
+        try {
+            User user = userService.getCurrentUser(authentication);
+            ForumInteractionDTO interactions = forumService.getForumInteractions(forumId, user);
+            return ResponseEntity.ok(ApiResponse.builder()
+                    .message("Lấy thông tin tương tác thành công")
+                    .status(200)
+                    .data(interactions)
+                    .success(true)
+                    .build());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.builder()
+                    .message("Lỗi khi lấy thông tin tương tác: " + e.getMessage())
                     .status(400)
                     .success(false)
                     .build());
