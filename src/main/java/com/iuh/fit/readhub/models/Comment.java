@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -33,6 +35,12 @@ public class Comment {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    @OneToMany(mappedBy = "comment", cascade = CascadeType.ALL)
+    private Set<CommentDiscussionLike> likes = new HashSet<>();
+
+    @OneToMany(mappedBy = "parentComment", cascade = CascadeType.ALL)
+    private Set<CommentDiscussionReply> replies = new HashSet<>();
 
     @PrePersist
     protected void onCreate() {
