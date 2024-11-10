@@ -163,18 +163,12 @@ public class WebSocketCommentController {
                 Long commentId = commentService.getCommentIdByReplyId(message.getReplyId());
                 commentService.deleteReply(message.getReplyId(), auth);
                 messagingTemplate.convertAndSend(
-                        "/topic/reply/" + message.getReplyId() + "/delete",
+                        "/topic/comment/" + commentId + "/reply/delete",
                         Map.of(
                                 "replyId", message.getReplyId(),
                                 "commentId", commentId,
                                 "deleted", true
                         )
-                );
-
-                CommentDTO updatedComment = commentService.getCommentById(commentId);
-                messagingTemplate.convertAndSend(
-                        "/topic/comment/" + commentId + "/update",
-                        updatedComment
                 );
             }
         } catch (Exception e) {
