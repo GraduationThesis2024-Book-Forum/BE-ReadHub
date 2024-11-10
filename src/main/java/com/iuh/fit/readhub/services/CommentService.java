@@ -149,4 +149,94 @@ public class CommentService {
         dto.setReplies(replies);
         return dto;
     }
+
+    @Transactional
+    public CommentDTO updateComment(Long commentId, String content, String imageUrl, Authentication authentication) {
+        User currentUser = userService.getCurrentUser(authentication);
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new RuntimeException("Comment not found"));
+
+        if (!comment.getUser().getUserId().equals(currentUser.getUserId())) {
+            throw new RuntimeException("You don't have permission to edit this comment");
+        }
+
+        comment.setContent(content);
+        if (imageUrl != null) {
+            // Delete old image if exists
+            if (comment.getImageUrl() != null) {
+                s3Service.deleteFile(comment.getImageUrl());
+            }
+            comment.setImageUrl(imageUrl);
+        }
+
+        Comment updatedComment = commentRepository.save(comment);
+        return convertToDTO(updatedComment, currentUser);
+    }
+
+    @Transactional
+    public void deleteComment(Long commentId, Authentication authentication) {
+        User currentUser = userService.getCurrentUser(authentication);
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new RuntimeException("Comment not found"));
+
+        if (!comment.getUser().getUserId().equals(currentUser.getUserId()) &&
+                !currentUser.getRole().equals("ROLE_ADMIN")) {
+            throw new RuntimeException("You don't have permission to delete this comment");
+        }
+
+        // Delete associated likes
+        commentDiscussionLikeRepository.deleteByComment(comment);
+
+        // Delete associated replies
+        commentDiscussionReplyRepository.deleteByParentComment(comment);
+
+        // Delete image if exists
+        if (comment.getImageUrl() != null) {
+            s3Service.deleteFile(comment.getImageUrl());
+        }
+
+        commentRepository.delete(comment);
+    }
+
+    @Transactional
+    public CommentDiscussionReplyDTO updateReply(Long replyId, String content, String imageUrl, Authentication authentication) {
+        User currentUser = userService.getCurrentUser(authentication);
+        CommentDiscussionReply reply = commentDiscussionReplyRepository.findById(replyId)
+                .orElseThrow(() -> new RuntimeException("Reply not found"));
+
+        if (!reply.getUser().getUserId().equals(currentUser.getUserId())) {
+            throw new RuntimeException("You don't have permission to edit this reply");
+        }
+
+        reply.setContent(content);
+        if (imageUrl != null) {
+            // Delete old image if exists
+            if (reply.getImageUrl() != null) {
+                s3Service.deleteFile(reply.getImageUrl());
+            }
+            reply.setImageUrl(imageUrl);
+        }
+
+        CommentDiscussionReply updatedReply = commentDiscussionReplyRepository.save(reply);
+        return convertToReplyDTO(updatedReply);
+    }
+
+    @Transactional
+    public void deleteReply(Long replyId, Authentication authentication) {
+        User currentUser = userService.getCurrentUser(authentication);
+        CommentDiscussionReply reply = commentDiscussionReplyRepository.findById(replyId)
+                .orElseThrow(() -> new RuntimeException("Reply not found"));
+
+        if (!reply.getUser().getUserId().equals(currentUser.getUserId()) &&
+                !currentUser.getRole().equals("ROLE_ADMIN")) {
+            throw new RuntimeException("You don't have permission to delete this reply");
+        }
+
+        // Delete image if exists
+        if (reply.getImageUrl() != null) {
+            s3Service.deleteFile(reply.getImageUrl());
+        }
+
+        commentDiscussionReplyRepository.delete(reply);
+    }
 }
