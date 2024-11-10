@@ -115,9 +115,14 @@ public class WebSocketCommentController {
         try {
             Principal user = headerAccessor.getUser();
             if (user instanceof Authentication auth && auth.isAuthenticated()) {
+                Long forumId = commentService.getForumIdByCommentId(message.getCommentId());
                 commentService.deleteComment(message.getCommentId(), auth);
                 messagingTemplate.convertAndSend(
                         "/topic/comment/" + message.getCommentId() + "/delete",
+                        Map.of("commentId", message.getCommentId(), "deleted", true)
+                );
+                messagingTemplate.convertAndSend(
+                        "/topic/forum/" + forumId + "/comment-delete",
                         Map.of("commentId", message.getCommentId(), "deleted", true)
                 );
             }
@@ -125,6 +130,7 @@ public class WebSocketCommentController {
             handleError(message.getCommentId(), e, "delete");
         }
     }
+
 
     @MessageMapping("/comment/reply/update")
     public void handleReplyUpdate(@Payload CommentReplyDiscussionUpdateMessage message,
@@ -154,10 +160,21 @@ public class WebSocketCommentController {
         try {
             Principal user = headerAccessor.getUser();
             if (user instanceof Authentication auth && auth.isAuthenticated()) {
+                Long commentId = commentService.getCommentIdByReplyId(message.getReplyId());
                 commentService.deleteReply(message.getReplyId(), auth);
                 messagingTemplate.convertAndSend(
                         "/topic/reply/" + message.getReplyId() + "/delete",
-                        Map.of("replyId", message.getReplyId(), "deleted", true)
+                        Map.of(
+                                "replyId", message.getReplyId(),
+                                "commentId", commentId,
+                                "deleted", true
+                        )
+                );
+
+                CommentDTO updatedComment = commentService.getCommentById(commentId);
+                messagingTemplate.convertAndSend(
+                        "/topic/comment/" + commentId + "/update",
+                        updatedComment
                 );
             }
         } catch (Exception e) {

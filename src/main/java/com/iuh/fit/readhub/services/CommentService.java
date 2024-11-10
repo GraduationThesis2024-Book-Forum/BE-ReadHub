@@ -239,4 +239,22 @@ public class CommentService {
 
         commentDiscussionReplyRepository.delete(reply);
     }
+
+    public Long getForumIdByCommentId(Long commentId) {
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new RuntimeException("Comment not found"));
+        return comment.getDiscussion().getDiscussionId();
+    }
+
+    public Long getCommentIdByReplyId(Long replyId) {
+        CommentDiscussionReply reply = commentDiscussionReplyRepository.findById(replyId)
+                .orElseThrow(() -> new RuntimeException("Reply not found"));
+        return reply.getParentComment().getCommentId();
+    }
+
+    public CommentDTO getCommentById(Long commentId) {
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new RuntimeException("Comment not found"));
+        return convertToDTO(comment, null); // Pass null as currentUser if not needed
+    }
 }
