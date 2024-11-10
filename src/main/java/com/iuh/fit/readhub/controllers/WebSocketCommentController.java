@@ -2,9 +2,7 @@ package com.iuh.fit.readhub.controllers;
 
 import com.iuh.fit.readhub.dto.CommentDTO;
 import com.iuh.fit.readhub.dto.CommentDiscussionReplyDTO;
-import com.iuh.fit.readhub.dto.message.CommentDiscussionLikeMessage;
-import com.iuh.fit.readhub.dto.message.CommentDiscussionReplyMessage;
-import com.iuh.fit.readhub.dto.message.CommentMessage;
+import com.iuh.fit.readhub.dto.message.*;
 import com.iuh.fit.readhub.services.CommentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -86,6 +84,84 @@ public class WebSocketCommentController {
             }
         } catch (Exception e) {
             handleError(message.getCommentId(), e);
+        }
+    }
+
+    @MessageMapping("/comment/update")
+    public void handleCommentUpdate(@Payload CommentDiscussionUpdateMessage message,
+                                    SimpMessageHeaderAccessor headerAccessor) {
+        try {
+            Principal user = headerAccessor.getUser();
+            if (user instanceof Authentication auth && auth.isAuthenticated()) {
+                CommentDTO updatedComment = commentService.updateComment(
+                        message.getCommentId(),
+                        message.getContent(),
+                        message.getImageUrl(),
+                        auth
+                );
+                messagingTemplate.convertAndSend(
+                        "/topic/comment/" + message.getCommentId() + "/update",
+                        updatedComment
+                );
+            }
+        } catch (Exception e) {
+            handleError(message.getCommentId(), e, "update");
+        }
+    }
+
+    @MessageMapping("/comment/delete")
+    public void handleCommentDelete(@Payload CommentDiscussionDeleteMessage message,
+                                    SimpMessageHeaderAccessor headerAccessor) {
+        try {
+            Principal user = headerAccessor.getUser();
+            if (user instanceof Authentication auth && auth.isAuthenticated()) {
+                commentService.deleteComment(message.getCommentId(), auth);
+                messagingTemplate.convertAndSend(
+                        "/topic/comment/" + message.getCommentId() + "/delete",
+                        Map.of("commentId", message.getCommentId(), "deleted", true)
+                );
+            }
+        } catch (Exception e) {
+            handleError(message.getCommentId(), e, "delete");
+        }
+    }
+
+    @MessageMapping("/comment/reply/update")
+    public void handleReplyUpdate(@Payload CommentReplyDiscussionUpdateMessage message,
+                                  SimpMessageHeaderAccessor headerAccessor) {
+        try {
+            Principal user = headerAccessor.getUser();
+            if (user instanceof Authentication auth && auth.isAuthenticated()) {
+                CommentDiscussionReplyDTO updatedReply = commentService.updateReply(
+                        message.getReplyId(),
+                        message.getContent(),
+                        message.getImageUrl(),
+                        auth
+                );
+                messagingTemplate.convertAndSend(
+                        "/topic/reply/" + message.getReplyId() + "/update",
+                        updatedReply
+                );
+            }
+        } catch (Exception e) {
+            handleError(message.getReplyId(), e, "reply-update");
+        }
+    }
+
+    @MessageMapping("/comment/reply/delete")
+    public void handleReplyDelete(@Payload CommentReplyDiscussionDeleteMessage message,
+                                  SimpMessageHeaderAccessor headerAccessor) {
+        try {
+            Principal user = headerAccessor.getUser();
+            if (user instanceof Authentication auth && auth.isAuthenticated()) {
+                commentService.deleteReply(message.getReplyId(), auth);
+                messagingTemplate.convertAndSend(
+                        "/topic/reply/" + message.getReplyId() + "/delete",
+                        Map.of("replyId", message.getReplyId(), "deleted", true)
+                );
+            }
+        } catch (Exception e) {
+            handleError(message.getReplyId(), e, "reply-delete");
         }
     }
 
