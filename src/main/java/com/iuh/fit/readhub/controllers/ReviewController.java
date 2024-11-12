@@ -45,7 +45,7 @@ public class ReviewController {
     }
 
     @GetMapping("/user/{userId}/book/{bookId}")
-    @PreAuthorize("hasRole('ROLE_ADMIN') || hasRole('ROLE_USER')")
+    @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
     public ResponseEntity<ApiResponse<?>> getUserReview(
             @PathVariable Long bookId,
             @PathVariable Long userId
@@ -68,7 +68,7 @@ public class ReviewController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ROLE_ADMIN') || hasRole('ROLE_USER')")
+    @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
     public ResponseEntity<ApiResponse<?>> createReview(@RequestBody ReviewRequest request) {
         Review newReview = new Review();
         newReview.setUser(userRepository.findById(request.getUserId()).get());
@@ -88,7 +88,7 @@ public class ReviewController {
     }
 
     @PutMapping
-    @PreAuthorize("hasRole('ROLE_ADMIN') || hasRole('ROLE_USER')")
+    @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
     public ResponseEntity<ApiResponse<?>> updateReview(
             @RequestBody ReviewRequest request
     ) {
@@ -115,7 +115,7 @@ public class ReviewController {
     }
 
     @DeleteMapping("/{reviewId}")
-    @PreAuthorize("hasRole('ROLE_ADMIN') || hasRole('ROLE_USER')")
+    @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
     public ResponseEntity<ApiResponse<?>> deleteReview(@PathVariable Long reviewId) {
         reviewService.deleteReview(reviewId);
         return ResponseEntity.ok(ApiResponse.builder()
@@ -126,7 +126,7 @@ public class ReviewController {
     }
 
     @PostMapping("/{reviewId}/like/user/{userId}")
-    @PreAuthorize("hasRole('ROLE_ADMIN') || hasRole('ROLE_USER')")
+    @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
     public ResponseEntity<ApiResponse<?>> likeReview(@PathVariable Long reviewId, @PathVariable Long userId) {
         reviewReactService.likeReview(reviewId, userId);
         return ResponseEntity.ok(ApiResponse.builder()
@@ -137,7 +137,7 @@ public class ReviewController {
     }
 
     @PostMapping("/{reviewId}/report/user/{userId}")
-    @PreAuthorize("hasRole('ROLE_ADMIN') || hasRole('ROLE_USER')")
+    @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
     public ResponseEntity<ApiResponse<?>> reportReview(@PathVariable Long reviewId, @PathVariable Long userId) {
         reviewReactService.reportReview(reviewId, userId);
         return ResponseEntity.ok(ApiResponse.builder()

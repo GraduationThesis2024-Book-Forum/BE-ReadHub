@@ -17,7 +17,7 @@ public class BookmarkController {
     private BookmarkService bookmarkService;
 
     @PostMapping
-    @PreAuthorize("hasRole('ROLE_ADMIṆ') || hasRole('ROLE_USER')")
+    @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
     public ResponseEntity<ApiResponse<?>> createBookmark(@RequestBody BookmarkRequest bookmarkRequest) {
         bookmarkService.createBookmark(bookmarkRequest);
         return ResponseEntity.ok(ApiResponse.builder()
@@ -28,7 +28,7 @@ public class BookmarkController {
     }
 
     @PutMapping
-    @PreAuthorize("hasRole('ROLE_ADMIṆ') || hasRole('ROLE_USER')")
+    @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
     public ResponseEntity<ApiResponse<?>> updateBookmark(@RequestBody BookmarkRequest bookmarkRequest) {
         bookmarkService.updateBookmark(bookmarkRequest);
         return ResponseEntity.ok(ApiResponse.builder()
@@ -39,7 +39,7 @@ public class BookmarkController {
     }
 
     @GetMapping("/user/{userId}/book/{bookId}")
-    @PreAuthorize("hasRole('ROLE_ADMIṆ') || hasRole('ROLE_USER')")
+    @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
     public ResponseEntity<ApiResponse<?>> getBookmarkByUserIdAndBookId(@PathVariable Long userId, @PathVariable Long bookId) {
         Bookmark bookmark = bookmarkService.getBookmarkByUserIdAndBookId(userId, bookId);
         bookmark.setUser(null);

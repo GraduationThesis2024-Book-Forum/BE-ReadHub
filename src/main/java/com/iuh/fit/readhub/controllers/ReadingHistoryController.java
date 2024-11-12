@@ -20,7 +20,7 @@ public class ReadingHistoryController {
     private UserRepository userRepository;
 
     @PostMapping
-    @PreAuthorize("hasRole('ROLE_ADMIṆ') || hasRole('ROLE_USER')")
+    @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
     public ResponseEntity<ApiResponse<?>> createReadingHistory(@RequestBody ReadingHistoryRequest readingHistoryRequest) {
         readingHistoryService.createReadingHistory(readingHistoryRequest);
         return ResponseEntity.ok(ApiResponse.builder()
@@ -31,7 +31,7 @@ public class ReadingHistoryController {
     }
 
     @GetMapping("user/{userId}")
-    @PreAuthorize("hasRole('ROLE_ADMIṆ') || hasRole('ROLE_USER')")
+    @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
     public ResponseEntity<ApiResponse<?>> getReadingHistoryByUserId(@PathVariable Long userId) {
         return ResponseEntity.ok(ApiResponse.builder()
                 .message("Lấy lịch sử đọc sách thành công")
