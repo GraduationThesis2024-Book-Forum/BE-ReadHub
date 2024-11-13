@@ -6,15 +6,14 @@ import com.iuh.fit.readhub.dto.request.ForumRequest;
 import com.iuh.fit.readhub.exceptions.ForumException;
 import com.iuh.fit.readhub.mapper.UserMapper;
 import com.iuh.fit.readhub.models.*;
-import com.iuh.fit.readhub.repositories.ForumLikeRepository;
-import com.iuh.fit.readhub.repositories.ForumMemberRepository;
-import com.iuh.fit.readhub.repositories.ForumRepository;
-import com.iuh.fit.readhub.repositories.ForumSaveRepository;
+import com.iuh.fit.readhub.repositories.*;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -28,17 +27,27 @@ public class ForumService {
     private final S3Service s3Service;
     private final ForumLikeRepository forumLikeRepository;
     private final ForumSaveRepository forumSaveRepository;
+    private final ForumReportRepository forumReportRepository;
+    private final UserService userService;
+    private final CommentDiscussionLikeRepository commentDiscussionLikeRepository;
+    private final CommentDiscussionReplyRepository commentDiscussionReplyRepository;
+    private final CommentRepository commentRepository;
 
     public ForumService(ForumRepository forumRepository,
                         ForumMemberRepository forumMemberRepository,
                         UserMapper userMapper,
-                        S3Service s3Service, ForumLikeRepository forumLikeRepository, ForumSaveRepository forumSaveRepository) {
+                        S3Service s3Service, ForumLikeRepository forumLikeRepository, ForumSaveRepository forumSaveRepository, ForumReportRepository forumReportRepository, UserService userService, CommentDiscussionLikeRepository commentDiscussionLikeRepository, CommentDiscussionReplyRepository commentDiscussionReplyRepository, CommentRepository commentRepository) {
         this.forumRepository = forumRepository;
         this.forumMemberRepository = forumMemberRepository;
         this.userMapper = userMapper;
         this.s3Service = s3Service;
         this.forumLikeRepository = forumLikeRepository;
         this.forumSaveRepository = forumSaveRepository;
+        this.forumReportRepository = forumReportRepository;
+        this.userService = userService;
+        this.commentDiscussionLikeRepository = commentDiscussionLikeRepository;
+        this.commentDiscussionReplyRepository = commentDiscussionReplyRepository;
+        this.commentRepository = commentRepository;
     }
 
     public ForumInteractionDTO toggleLike(Long forumId, User user) {
@@ -187,5 +196,49 @@ public class ForumService {
         Discussion forum = forumRepository.findById(forumId)
                 .orElseThrow(() -> new ForumException("Không tìm thấy diễn đàn"));
         return convertToDTO(forum);
+    }
+
+    @Transactional
+    public void deleteForum(Long forumId) {
+        Discussion forum = forumRepository.findById(forumId)
+                .orElseThrow(() -> new ForumException("Diễn đàn không tồn tại"));
+
+        // Xóa các bảng liên quan
+        forumMemberRepository.deleteByDiscussion(forum);
+        forumLikeRepository.deleteByDiscussion(forum);
+        forumSaveRepository.deleteByDiscussion(forum);
+
+        // Xóa các comment và reply
+        forum.getComments().forEach(comment -> {
+            commentDiscussionLikeRepository.deleteByComment(comment);
+            commentDiscussionReplyRepository.deleteByParentComment(comment);
+            commentRepository.delete(comment);
+        });
+
+        // Xóa forum
+        forumRepository.delete(forum);
+    }
+
+    @Transactional
+    public void reportForum(Long forumId, User reporter, String reason) {
+        Discussion forum = forumRepository.findById(forumId)
+                .orElseThrow(() -> new ForumException("Diễn đàn không tồn tại"));
+
+        ForumReport report = ForumReport.builder()
+                .forum(forum)
+                .reporter(reporter)
+                .reason(reason)
+                .reportedAt(LocalDateTime.now())
+                .status("PENDING")
+                .build();
+
+        forumReportRepository.save(report);
+    }
+
+    public boolean isForumCreator(Long forumId, Authentication authentication) {
+        User currentUser = userService.getCurrentUser(authentication);
+        Discussion forum = forumRepository.findById(forumId)
+                .orElseThrow(() -> new ForumException("Diễn đàn không tồn tại"));
+        return forum.getCreator().getUserId().equals(currentUser.getUserId());
     }
 }
