@@ -53,7 +53,7 @@ public class UserController {
     }
 
     @GetMapping("/profile")
-    @PreAuthorize("hasRole('ROLE_ADMIṆ') || hasRole('ROLE_USER')")
+    @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
     public ResponseEntity<?> getUserProfile(Authentication authentication) {
         try {
             String username = authentication.getName();
@@ -83,7 +83,7 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ROLE_ADMIṆ') || hasRole('ROLE_USER')")
+    @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
     public ResponseEntity<?> updateUser(@PathVariable Long id, @RequestBody UserRequest userRequest) {
         try {
             Optional<User> userOptional = userRepository.findById(id);
@@ -117,7 +117,7 @@ public class UserController {
 
     //upload avatar lên s3 và db
     @PostMapping("/{userId}/upload-avatar")
-    @PreAuthorize("hasRole('ROLE_ADMIṆ') || hasRole('ROLE_USER')")
+    @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
     public ResponseEntity<?> uploadAvatar(@ModelAttribute MultipartFile avatar, @PathVariable Long userId) {
         try {
             User user = userRepository.findById(userId).get();
@@ -131,7 +131,7 @@ public class UserController {
     }
 //    reset password
     @PutMapping("/{userId}/reset-password")
-    @PreAuthorize("hasRole('ROLE_ADMIṆ') || hasRole('ROLE_USER')")
+    @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
     public ResponseEntity<?> resetPassword(@PathVariable Long userId, @RequestBody ChangePasswordRequest changePasswordRequest) {
         try {
             userService.resetPassword(userId, changePasswordRequest.getPassword(), changePasswordRequest.getNewPassword());

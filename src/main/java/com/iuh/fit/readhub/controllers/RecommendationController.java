@@ -20,7 +20,7 @@ public class RecommendationController {
     private RecommendationService recommendationService;
 
     @GetMapping("/user/{userId}")
-    @PreAuthorize("hasRole('ROLE_ADMIN') || hasRole('ROLE_USER')")
+    @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
     public ResponseEntity<ApiResponse<?>> getRecommendedBooks(@PathVariable Long userId) {
         List<Long> recommendedBookIds = recommendationService.getRecommendedBookIds(userId);
         return ResponseEntity.ok(ApiResponse.builder()

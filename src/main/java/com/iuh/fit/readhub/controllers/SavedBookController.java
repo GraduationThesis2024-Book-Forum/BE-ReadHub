@@ -17,7 +17,7 @@ public class SavedBookController {
     private SavedBookService savedBookService;
 
     @PostMapping("/user/{userId}/book/{bookId}")
-    @PreAuthorize("hasRole('ROLE_ADMIN') || hasRole('ROLE_USER')")
+    @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
     public ResponseEntity<ApiResponse<?>> saveBook( @PathVariable Long bookId, @PathVariable Long userId) {
         savedBookService.saveBook(userId, bookId);
         return ResponseEntity.ok(ApiResponse.builder()
@@ -28,7 +28,7 @@ public class SavedBookController {
     }
 
     @DeleteMapping("/user/{userId}/book/{bookId}")
-    @PreAuthorize("hasRole('ROLE_ADMIN') || hasRole('ROLE_USER')")
+    @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
     public ResponseEntity<ApiResponse<?>> unsaveBook(@PathVariable Long userId, @PathVariable Long bookId) {
         savedBookService.unsaveBook(userId, bookId);
         return ResponseEntity.ok(ApiResponse.builder()
@@ -39,7 +39,7 @@ public class SavedBookController {
     }
 
     @GetMapping("/user/{userId}")
-    @PreAuthorize("hasRole('ROLE_ADMIN') || hasRole('ROLE_USER')")
+    @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
     public ResponseEntity<ApiResponse<?>> getSavedBookIds(@PathVariable Long userId) {
         List<Long> bookIds = savedBookService.getSavedBookIds(userId);
         if (bookIds.isEmpty()) {
@@ -59,7 +59,7 @@ public class SavedBookController {
     }
 
     @GetMapping("/user/{userId}/{bookId}/is-saved")
-    @PreAuthorize("hasRole('ROLE_ADMIN') || hasRole('ROLE_USER')")
+    @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
     public ResponseEntity<ApiResponse<?>> isBookSaved(@PathVariable Long userId, @PathVariable Long bookId) {
         boolean isSaved = savedBookService.isBookSaved(userId, bookId);
         return ResponseEntity.ok(ApiResponse.builder()
