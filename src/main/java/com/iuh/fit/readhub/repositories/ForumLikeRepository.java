@@ -13,4 +13,8 @@ public interface ForumLikeRepository extends JpaRepository<ForumLike, Long> {
     @Query("DELETE FROM ForumLike fl WHERE fl.discussion = ?1 AND fl.user = ?2")
     void deleteByDiscussionAndUser(Discussion discussion, User user);
     long countByDiscussion(Discussion discussion);
+
+    @Modifying
+    @Query("DELETE FROM ForumLike fl WHERE fl.discussion = ?1")
+    void deleteByDiscussion(Discussion discussion);
 }

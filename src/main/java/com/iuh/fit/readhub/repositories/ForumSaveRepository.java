@@ -15,4 +15,8 @@ public interface ForumSaveRepository extends JpaRepository<ForumSave, Long> {
     @Query("DELETE FROM ForumSave fs WHERE fs.discussion = ?1 AND fs.user = ?2")
     void deleteByDiscussionAndUser(Discussion discussion, User user);
     List<ForumSave> findByUser(User user);
+
+    @Modifying
+    @Query("DELETE FROM ForumSave fs WHERE fs.discussion = ?1")
+    void deleteByDiscussion(Discussion discussion);
 }

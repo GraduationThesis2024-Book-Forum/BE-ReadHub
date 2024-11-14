@@ -4,6 +4,7 @@ import com.iuh.fit.readhub.dto.ApiResponse;
 import com.iuh.fit.readhub.dto.CommentDTO;
 import com.iuh.fit.readhub.dto.ForumDTO;
 import com.iuh.fit.readhub.dto.ForumInteractionDTO;
+import com.iuh.fit.readhub.dto.request.ForumReportRequest;
 import com.iuh.fit.readhub.dto.request.ForumRequest;
 import com.iuh.fit.readhub.models.Discussion;
 import com.iuh.fit.readhub.models.User;
@@ -222,6 +223,50 @@ public class ForumController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.builder()
                     .message("Lỗi khi lấy thông tin tương tác: " + e.getMessage())
+                    .status(400)
+                    .success(false)
+                    .build());
+        }
+    }
+
+    @DeleteMapping("/{forumId}")
+    @PreAuthorize("hasRole('ROLE_ADMIN') or @forumService.isForumCreator(#forumId, authentication)")
+    public ResponseEntity<ApiResponse<?>> deleteForum(
+            @PathVariable Long forumId,
+            Authentication authentication) {
+        try {
+            forumService.deleteForum(forumId);
+            return ResponseEntity.ok(ApiResponse.builder()
+                    .message("Xóa diễn đàn thành công")
+                    .status(200)
+                    .success(true)
+                    .build());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.builder()
+                    .message("Lỗi khi xóa diễn đàn: " + e.getMessage())
+                    .status(400)
+                    .success(false)
+                    .build());
+        }
+    }
+
+    @PostMapping("/{forumId}/report")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<?>> reportForum(
+            @PathVariable Long forumId,
+            @RequestBody ForumReportRequest request,
+            Authentication authentication) {
+        try {
+            User reporter = userService.getCurrentUser(authentication);
+            forumService.reportForum(forumId, reporter, request.getReason(), request.getAdditionalInfo());
+            return ResponseEntity.ok(ApiResponse.builder()
+                    .message("Forum reported successfully")
+                    .status(200)
+                    .success(true)
+                    .build());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.builder()
+                    .message("Error reporting forum: " + e.getMessage())
                     .status(400)
                     .success(false)
                     .build());

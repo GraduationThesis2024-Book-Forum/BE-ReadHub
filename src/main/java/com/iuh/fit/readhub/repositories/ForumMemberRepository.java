@@ -1,7 +1,9 @@
 package com.iuh.fit.readhub.repositories;
 
+import com.iuh.fit.readhub.models.Discussion;
 import com.iuh.fit.readhub.models.ForumMember;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.util.Optional;
@@ -21,4 +23,8 @@ public interface ForumMemberRepository extends JpaRepository<ForumMember, Long> 
     @Query("SELECT CASE WHEN COUNT(fm) > 0 THEN true ELSE false END FROM ForumMember fm " +
             "WHERE fm.discussion.discussionId = :discussionId AND fm.user.userId = :userId")
     boolean checkMembership(@Param("discussionId") Long discussionId, @Param("userId") Long userId);
+
+    @Modifying
+    @Query("DELETE FROM ForumMember fm WHERE fm.discussion = ?1")
+    void deleteByDiscussion(Discussion discussion);
 }
