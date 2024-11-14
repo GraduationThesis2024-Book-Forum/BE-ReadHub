@@ -258,15 +258,15 @@ public class ForumController {
             Authentication authentication) {
         try {
             User reporter = userService.getCurrentUser(authentication);
-            forumService.reportForum(forumId, reporter, request.getReason());
+            forumService.reportForum(forumId, reporter, request.getReason(), request.getAdditionalInfo());
             return ResponseEntity.ok(ApiResponse.builder()
-                    .message("Báo cáo diễn đàn thành công")
+                    .message("Forum reported successfully")
                     .status(200)
                     .success(true)
                     .build());
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.builder()
-                    .message("Lỗi khi báo cáo diễn đàn: " + e.getMessage())
+                    .message("Error reporting forum: " + e.getMessage())
                     .status(400)
                     .success(false)
                     .build());

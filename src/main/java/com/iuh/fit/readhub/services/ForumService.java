@@ -1,5 +1,6 @@
 package com.iuh.fit.readhub.services;
 
+import com.iuh.fit.readhub.constants.ReportReason;
 import com.iuh.fit.readhub.dto.ForumDTO;
 import com.iuh.fit.readhub.dto.ForumInteractionDTO;
 import com.iuh.fit.readhub.dto.request.ForumRequest;
@@ -220,19 +221,29 @@ public class ForumService {
     }
 
     @Transactional
-    public void reportForum(Long forumId, User reporter, String reason) {
-        Discussion forum = forumRepository.findById(forumId)
-                .orElseThrow(() -> new ForumException("Diễn đàn không tồn tại"));
+    public void reportForum(Long forumId, User reporter, ReportReason reason, String additionalInfo) {
+        try {
+            Discussion forum = forumRepository.findById(forumId)
+                    .orElseThrow(() -> new ForumException("Forum not found"));
 
-        ForumReport report = ForumReport.builder()
-                .forum(forum)
-                .reporter(reporter)
-                .reason(reason)
-                .reportedAt(LocalDateTime.now())
-                .status("PENDING")
-                .build();
+            // Debug log
+            System.out.println("Reason: " + reason);
+            System.out.println("Additional Info: " + additionalInfo);
 
-        forumReportRepository.save(report);
+            ForumReport report = ForumReport.builder()
+                    .forum(forum)
+                    .reporter(reporter)
+                    .reason(reason)
+                    .additionalInfo(additionalInfo)
+                    .reportedAt(LocalDateTime.now())
+                    .status("PENDING")
+                    .build();
+
+            forumReportRepository.save(report);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new ForumException("Error reporting forum: " + e.getMessage());
+        }
     }
 
     public boolean isForumCreator(Long forumId, Authentication authentication) {

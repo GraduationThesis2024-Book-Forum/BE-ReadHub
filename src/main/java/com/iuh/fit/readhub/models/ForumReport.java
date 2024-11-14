@@ -1,5 +1,6 @@
 package com.iuh.fit.readhub.models;
 
+import com.iuh.fit.readhub.constants.ReportReason;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -27,7 +28,10 @@ public class ForumReport {
     @JoinColumn(name = "reporter_id")
     private User reporter;
 
-    private String reason;
+    @Enumerated(EnumType.STRING)
+    private ReportReason reason;
+
+    private String additionalInfo;
     private LocalDateTime reportedAt;
     private String status; // PENDING, RESOLVED, REJECTED
 }
