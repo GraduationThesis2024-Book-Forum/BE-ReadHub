@@ -1,22 +1,24 @@
 package com.iuh.fit.readhub.services;
 
+import com.iuh.fit.readhub.constants.NotificationType;
 import com.iuh.fit.readhub.constants.ReportReason;
+import com.iuh.fit.readhub.constants.ReportStatus;
 import com.iuh.fit.readhub.dto.ForumDTO;
 import com.iuh.fit.readhub.dto.ForumInteractionDTO;
 import com.iuh.fit.readhub.dto.request.ForumRequest;
+import com.iuh.fit.readhub.dto.request.ReportActionRequest;
 import com.iuh.fit.readhub.exceptions.ForumException;
 import com.iuh.fit.readhub.mapper.UserMapper;
 import com.iuh.fit.readhub.models.*;
 import com.iuh.fit.readhub.repositories.*;
 import jakarta.transaction.Transactional;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -33,11 +35,13 @@ public class ForumService {
     private final CommentDiscussionLikeRepository commentDiscussionLikeRepository;
     private final CommentDiscussionReplyRepository commentDiscussionReplyRepository;
     private final CommentRepository commentRepository;
+    private final UserRepository userRepository;
+    private final FCMService fcmService;
 
     public ForumService(ForumRepository forumRepository,
                         ForumMemberRepository forumMemberRepository,
                         UserMapper userMapper,
-                        S3Service s3Service, ForumLikeRepository forumLikeRepository, ForumSaveRepository forumSaveRepository, ForumReportRepository forumReportRepository, UserService userService, CommentDiscussionLikeRepository commentDiscussionLikeRepository, CommentDiscussionReplyRepository commentDiscussionReplyRepository, CommentRepository commentRepository) {
+                        S3Service s3Service, ForumLikeRepository forumLikeRepository, ForumSaveRepository forumSaveRepository, ForumReportRepository forumReportRepository, UserService userService, CommentDiscussionLikeRepository commentDiscussionLikeRepository, CommentDiscussionReplyRepository commentDiscussionReplyRepository, CommentRepository commentRepository, UserRepository userRepository, FCMService fcmService) {
         this.forumRepository = forumRepository;
         this.forumMemberRepository = forumMemberRepository;
         this.userMapper = userMapper;
@@ -49,6 +53,8 @@ public class ForumService {
         this.commentDiscussionLikeRepository = commentDiscussionLikeRepository;
         this.commentDiscussionReplyRepository = commentDiscussionReplyRepository;
         this.commentRepository = commentRepository;
+        this.userRepository = userRepository;
+        this.fcmService = fcmService;
     }
 
     public ForumInteractionDTO toggleLike(Long forumId, User user) {
@@ -57,6 +63,8 @@ public class ForumService {
                     .orElseThrow(() -> new RuntimeException("Forum not found"));
 
             boolean exists = forumLikeRepository.existsByDiscussionAndUser(discussion, user);
+            boolean isNewLike = false;
+
             if (exists) {
                 forumLikeRepository.deleteByDiscussionAndUser(discussion, user);
             } else {
@@ -65,13 +73,29 @@ public class ForumService {
                         .user(user)
                         .build();
                 forumLikeRepository.save(like);
+                isNewLike = true;
+            }
+
+            // Send notification only for new likes
+            if (isNewLike) {
+                Map<String, String> data = Map.of(
+                        "type", NotificationType.FORUM_LIKE.name(),
+                        "forumId", forumId.toString(),
+                        "userId", user.getUserId().toString()
+                );
+
+                fcmService.sendNotification(
+                        discussion.getCreator().getUserId(),
+                        NotificationType.FORUM_LIKE.getTitle(),
+                        NotificationType.FORUM_LIKE.formatMessage(user.getUsername()),
+                        data
+                );
             }
 
             return getForumInteractions(forumId, user);
         } catch (Exception e) {
             throw new ForumException("Không thể thực hiện thao tác này");
         }
-
     }
 
     public ForumInteractionDTO toggleSave(Long forumId, User user) {
@@ -111,6 +135,14 @@ public class ForumService {
 
     @Transactional
     public ForumDTO createForum(ForumRequest request, User creator) {
+        if (creator.isCurrentlyBanned()) {
+            String banMessage = creator.getForumCreationBanExpiresAt() != null ?
+                    String.format("Bạn bị cấm tạo diễn đàn đến %s",
+                            creator.getForumCreationBanExpiresAt().toString()) :
+                    "Bạn đã bị cấm tạo diễn đàn vĩnh viễn";
+
+            throw new RuntimeException(banMessage);
+        }
         String imageUrl = null;
         if (request.getForumImage() != null && !request.getForumImage().isEmpty()) {
             imageUrl = s3Service.uploadFile(request.getForumImage());
@@ -226,9 +258,12 @@ public class ForumService {
             Discussion forum = forumRepository.findById(forumId)
                     .orElseThrow(() -> new ForumException("Forum not found"));
 
-            // Debug log
-            System.out.println("Reason: " + reason);
-            System.out.println("Additional Info: " + additionalInfo);
+            boolean hasReported = forumReportRepository.existsByForumAndReporterAndStatus(
+                    forum, reporter, ReportStatus.PENDING);
+
+            if (hasReported) {
+                throw new RuntimeException("Bạn đã báo cáo diễn đàn này rồi");
+            }
 
             ForumReport report = ForumReport.builder()
                     .forum(forum)
@@ -236,10 +271,28 @@ public class ForumService {
                     .reason(reason)
                     .additionalInfo(additionalInfo)
                     .reportedAt(LocalDateTime.now())
-                    .status("PENDING")
+                    .status(ReportStatus.PENDING)
                     .build();
 
             forumReportRepository.save(report);
+
+            // Notify admins
+            List<User> admins = userService.getAllAdmins();
+            for (User admin : admins) {
+                Map<String, String> data = Map.of(
+                        "type", NotificationType.FORUM_REPORT.name(),
+                        "forumId", forumId.toString(),
+                        "reporterId", reporter.getUserId().toString(),
+                        "reason", reason.name()
+                );
+
+                fcmService.sendNotification(
+                        admin.getUserId(),
+                        NotificationType.FORUM_REPORT.getTitle(),
+                        NotificationType.FORUM_REPORT.formatMessage(reason.getDescription()),
+                        data
+                );
+            }
         } catch (Exception e) {
             e.printStackTrace();
             throw new ForumException("Error reporting forum: " + e.getMessage());
@@ -251,5 +304,83 @@ public class ForumService {
         Discussion forum = forumRepository.findById(forumId)
                 .orElseThrow(() -> new ForumException("Diễn đàn không tồn tại"));
         return forum.getCreator().getUserId().equals(currentUser.getUserId());
+    }
+
+    @Transactional
+    public ForumReport handleReportAction(Long reportId, ReportActionRequest request) {
+        ForumReport report = forumReportRepository.findById(reportId)
+                .orElseThrow(() -> new RuntimeException("Report not found"));
+
+        User forumCreator = report.getForum().getCreator();
+
+        switch (request.getAction()) {
+            case DISMISS:
+                report.setStatus(ReportStatus.DISMISSED);
+                break;
+
+            case WARN:
+                report.setStatus(ReportStatus.WARNED);
+                break;
+
+            case BAN_1H:
+            case BAN_3H:
+            case BAN_24H:
+                handleTemporaryBan(forumCreator, request.getAction().getBanHours());
+                report.setStatus(ReportStatus.BANNED);
+                break;
+
+            case BAN_PERMANENT:
+                forumCreator.setForumCreationBanned(true);
+                forumCreator.setForumCreationBanReason(request.getReason());
+                userRepository.save(forumCreator);
+                report.setStatus(ReportStatus.BANNED);
+                break;
+        }
+
+        report.setResolvedAt(LocalDateTime.now());
+        ForumReport savedReport = forumReportRepository.save(report);
+
+        // Send notification to user about the action
+        Map<String, String> data = Map.of(
+                "type", NotificationType.REPORT_ACTION.name(),
+                "reportId", reportId.toString(),
+                "action", request.getAction().name(),
+                "forumId", report.getForum().getDiscussionId().toString()
+        );
+
+        fcmService.sendNotification(
+                forumCreator.getUserId(),
+                NotificationType.REPORT_ACTION.getTitle(),
+                request.getAction().getNotificationMessage(),
+                data
+        );
+
+        return savedReport;
+    }
+
+    private void handleTemporaryBan(User user, int hours) {
+        user.setForumCreationBanned(true);
+        user.setForumCreationBanExpiresAt(LocalDateTime.now().plusHours(hours));
+        userRepository.save(user);
+    }
+
+    public void banUser(User user, String reason, Integer hours) {
+        user.setForumCreationBanned(true);
+        user.setForumCreationBanReason(reason);
+
+        if (hours != null) {
+            user.setForumCreationBanExpiresAt(LocalDateTime.now().plusHours(hours));
+        } else {
+            user.setForumCreationBanExpiresAt(null); // Permanent ban
+        }
+
+        userRepository.save(user);
+    }
+
+    public void unbanUser(User user) {
+        user.setForumCreationBanned(false);
+        user.setForumCreationBanReason(null);
+        user.setForumCreationBanExpiresAt(null);
+        userRepository.save(user);
     }
 }
