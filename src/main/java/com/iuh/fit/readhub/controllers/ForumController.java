@@ -1,36 +1,50 @@
 package com.iuh.fit.readhub.controllers;
 
+import com.iuh.fit.readhub.constants.NotificationType;
 import com.iuh.fit.readhub.dto.ApiResponse;
 import com.iuh.fit.readhub.dto.CommentDTO;
 import com.iuh.fit.readhub.dto.ForumDTO;
 import com.iuh.fit.readhub.dto.ForumInteractionDTO;
 import com.iuh.fit.readhub.dto.request.ForumReportRequest;
 import com.iuh.fit.readhub.dto.request.ForumRequest;
-import com.iuh.fit.readhub.models.Discussion;
+import com.iuh.fit.readhub.dto.request.ReportActionRequest;
+import com.iuh.fit.readhub.models.ForumReport;
 import com.iuh.fit.readhub.models.User;
 import com.iuh.fit.readhub.services.CommentService;
+import com.iuh.fit.readhub.services.FCMService;
 import com.iuh.fit.readhub.services.ForumService;
 import com.iuh.fit.readhub.services.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("api/v1/forums")
 public class ForumController {
 
-    @Autowired
-    private ForumService forumService;
+    private final ForumService forumService;
 
-    @Autowired
-    private UserService userService;
-    @Autowired
-    private CommentService commentService;
+    private final UserService userService;
+
+    private final CommentService commentService;
+
+    private final FCMService fcmService;
+
+    public ForumController(
+            ForumService forumService,
+            UserService userService,
+            CommentService commentService, FCMService fcmService) {
+        this.forumService = forumService;
+        this.userService = userService;
+        this.commentService = commentService;
+        this.fcmService = fcmService;
+    }
 
     @GetMapping
     public ResponseEntity<ApiResponse<?>> getAllForums() {
@@ -45,6 +59,43 @@ public class ForumController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.builder()
                     .message("Lỗi khi lấy danh sách diễn đàn: " + e.getMessage())
+                    .status(400)
+                    .success(false)
+                    .build());
+        }
+    }
+
+    @PostMapping("/reports/{reportId}/action")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    public ResponseEntity<ApiResponse<?>> handleReportAction(
+            @PathVariable Long reportId,
+            @RequestBody ReportActionRequest request,
+            Authentication authentication) {
+        try {
+            ForumReport report = forumService.handleReportAction(reportId, request);
+
+            Map<String, String> data = Map.of(
+                    "type", NotificationType.REPORT_ACTION.name(),
+                    "reportId", reportId.toString(),
+                    "action", request.getAction().name(),
+                    "forumId", report.getForum().getDiscussionId().toString()
+            );
+
+            fcmService.sendNotification(
+                    report.getForum().getCreator().getUserId(),
+                    NotificationType.REPORT_ACTION.getTitle(),
+                    request.getAction().getNotificationMessage(),
+                    data
+            );
+
+            return ResponseEntity.ok(ApiResponse.builder()
+                    .message("Report action applied successfully")
+                    .status(200)
+                    .success(true)
+                    .build());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.builder()
+                    .message("Error applying report action: " + e.getMessage())
                     .status(400)
                     .success(false)
                     .build());
@@ -102,6 +153,19 @@ public class ForumController {
         try {
             User user = userService.getCurrentUser(authentication);
             ForumDTO forum = forumService.joinForum(forumId, user);
+
+            // Notify forum creator
+            Map<String, String> data = new HashMap<>();
+            data.put("type", "NEW_MEMBER");
+            data.put("forumId", forumId.toString());
+            data.put("memberId", user.getUserId().toString());
+
+            fcmService.sendNotification(
+                    forum.getCreator().getUserId(),
+                    "New Forum Member",
+                    user.getUsername() + " has joined your forum",
+                    data
+            );
 
             return ResponseEntity.ok(ApiResponse.builder()
                     .message("Tham gia diễn đàn thành công")
@@ -259,6 +323,23 @@ public class ForumController {
         try {
             User reporter = userService.getCurrentUser(authentication);
             forumService.reportForum(forumId, reporter, request.getReason(), request.getAdditionalInfo());
+
+            // Gửi notification cho admins
+            List<User> admins = userService.getAllAdmins();
+            for (User admin : admins) {
+                Map<String, String> data = new HashMap<>();
+                data.put("type", "FORUM_REPORT");
+                data.put("forumId", forumId.toString());
+                data.put("reporterId", reporter.getUserId().toString());
+
+                fcmService.sendNotification(
+                        admin.getUserId(),
+                        "New Forum Report",
+                        "A forum has been reported: " + request.getReason(),
+                        data
+                );
+            }
+
             return ResponseEntity.ok(ApiResponse.builder()
                     .message("Forum reported successfully")
                     .status(200)

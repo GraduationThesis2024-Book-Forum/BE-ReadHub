@@ -1,6 +1,7 @@
 package com.iuh.fit.readhub.models;
 
 import com.iuh.fit.readhub.constants.ReportReason;
+import com.iuh.fit.readhub.constants.ReportStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -32,6 +33,15 @@ public class ForumReport {
     private ReportReason reason;
 
     private String additionalInfo;
+
+    @Enumerated(EnumType.STRING)
+    private ReportStatus status = ReportStatus.PENDING;
+
     private LocalDateTime reportedAt;
-    private String status; // PENDING, RESOLVED, REJECTED
+    private LocalDateTime resolvedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        reportedAt = LocalDateTime.now();
+    }
 }

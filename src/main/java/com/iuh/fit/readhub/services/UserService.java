@@ -9,12 +9,18 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class UserService {
     private final UserRepository userRepository;
     private final S3Service s3Service;
     private final PasswordEncoder passwordEncoder;
+
+    public List<User> getAllAdmins() {
+        return userRepository.findByRole("ROLE_ADMIN");
+    }
 
     public User getCurrentUser(Authentication authentication) {
         User user = userRepository.findByEmailIgnoreCase(authentication.getName())
