@@ -38,7 +38,7 @@ public class AuthenService {
         return new RegistrationResponse(true, ValidationMessages.OTP_SENT.getMessage(), null,null);
     }
 
-    public RegistrationResponse registerForUser(String email, String username, String password) {
+    public RegistrationResponse registerForUser(String email, String fullName, String username, String password) {
         if (userRepository.existsByEmail(email)) {
             return new RegistrationResponse(false, ValidationMessages.EMAIL_ALREADY_EXISTS.getMessage(), null,null);
         }
@@ -61,6 +61,7 @@ public class AuthenService {
         String encodedPassword = passwordEncoder.encode(password);
         User newUser = new User();
         newUser.setEmail(email);
+        newUser.setFullName(fullName);
         newUser.setUsername(username);
         newUser.setPassword(encodedPassword);
         newUser.setRole(UserRole.USER);

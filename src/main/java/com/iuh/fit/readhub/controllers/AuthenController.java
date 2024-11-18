@@ -50,6 +50,7 @@ public class AuthenController {
 
     @PostMapping("/register")
     public ResponseEntity<RegistrationResponse> registerAndVerify(
+            @RequestParam String fullName,
             @RequestParam String email,
             @RequestParam String username,
             @RequestParam String password,
@@ -66,7 +67,7 @@ public class AuthenController {
             RegistrationResponse response = new RegistrationResponse(false, ValidationMessages.OTP_NOT_EMPTY.getMessage(), null,null);
             return ResponseEntity.ok(response);
         }
-        RegistrationResponse registrationResponse = authService.registerForUser(email, username, password);
+        RegistrationResponse registrationResponse = authService.registerForUser(email,fullName, username, password);
         if (!registrationResponse.isSuccess()) {
             if (registrationResponse.getMessage().equals(ValidationMessages.EMAIL_ALREADY_EXISTS.getMessage())) {
                 return new ResponseEntity<>(registrationResponse, HttpStatus.CONFLICT);
