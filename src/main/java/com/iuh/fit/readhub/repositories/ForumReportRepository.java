@@ -26,7 +26,6 @@ public interface ForumReportRepository extends JpaRepository<ForumReport, Long> 
     // Method hiện tại
     List<ForumReport> findByForumOrderByReportedAtDesc(Discussion forum);
     List<ForumReport> findByReporterOrderByReportedAtDesc(User reporter);
-    boolean existsByForumAndReporterAndStatus(Discussion forum, User reporter, ReportStatus status);
 
     // Thêm một số query hữu ích
     @Query("SELECT fr FROM ForumReport fr WHERE fr.forum.discussionId = :forumId AND fr.status = :status")

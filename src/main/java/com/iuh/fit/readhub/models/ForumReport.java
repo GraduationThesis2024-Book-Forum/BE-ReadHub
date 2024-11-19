@@ -30,11 +30,13 @@ public class ForumReport {
     private User reporter;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "reason")
     private ReportReason reason;
 
     private String additionalInfo;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "status")
     private ReportStatus status = ReportStatus.PENDING;
 
     private LocalDateTime reportedAt;

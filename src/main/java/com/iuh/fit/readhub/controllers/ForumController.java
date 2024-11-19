@@ -324,22 +324,6 @@ public class ForumController {
             User reporter = userService.getCurrentUser(authentication);
             forumService.reportForum(forumId, reporter, request.getReason(), request.getAdditionalInfo());
 
-            // Gửi notification cho admins
-            List<User> admins = userService.getAllAdmins();
-            for (User admin : admins) {
-                Map<String, String> data = new HashMap<>();
-                data.put("type", "FORUM_REPORT");
-                data.put("forumId", forumId.toString());
-                data.put("reporterId", reporter.getUserId().toString());
-
-                fcmService.sendNotification(
-                        admin.getUserId(),
-                        "New Forum Report",
-                        "A forum has been reported: " + request.getReason(),
-                        data
-                );
-            }
-
             return ResponseEntity.ok(ApiResponse.builder()
                     .message("Forum reported successfully")
                     .status(200)

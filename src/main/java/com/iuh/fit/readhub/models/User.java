@@ -12,7 +12,10 @@ import java.util.Set;
 @Data
 @Entity
 @Builder
-@Table(name = "User")
+@Table(name = "users", uniqueConstraints = {
+        @UniqueConstraint(columnNames = "email"),
+        @UniqueConstraint(columnNames = "username")
+})
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -113,16 +116,6 @@ public class User {
         if (role == null) {
             role = UserRole.USER;
         }
-    }
-
-    public void addNote(Note note) {
-        notes.add(note);
-        note.setUser(this);
-    }
-
-    public void removeNote(Note note) {
-        notes.remove(note);
-        note.setUser(null);
     }
 
     public boolean isAdmin() {

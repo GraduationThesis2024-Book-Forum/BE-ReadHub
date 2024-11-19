@@ -258,11 +258,8 @@ public class ForumService {
             Discussion forum = forumRepository.findById(forumId)
                     .orElseThrow(() -> new ForumException("Forum not found"));
 
-            boolean hasReported = forumReportRepository.existsByForumAndReporterAndStatus(
-                    forum, reporter, ReportStatus.PENDING);
-
-            if (hasReported) {
-                throw new RuntimeException("Bạn đã báo cáo diễn đàn này rồi");
+            if (forum.getCreator().getUserId().equals(reporter.getUserId())) {
+                throw new ForumException("You cannot report your own forum");
             }
 
             ForumReport report = ForumReport.builder()
