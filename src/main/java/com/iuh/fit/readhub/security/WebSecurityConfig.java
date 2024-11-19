@@ -55,6 +55,7 @@ public class WebSecurityConfig {
                                 "/ws/**",
                                 "/ws/info/**",
                                 "/ws/websocket/**",
+                                "/api/v1/notifications/**",
                                 "/topic/**",
                                 "/app/**").permitAll()
                         .anyRequest().authenticated()
