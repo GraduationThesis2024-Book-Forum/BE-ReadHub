@@ -30,10 +30,12 @@ public class CommentService {
     private final S3Service s3Service;
     private final CommentDiscussionLikeRepository commentDiscussionLikeRepository;
     private final CommentDiscussionReplyRepository commentDiscussionReplyRepository;
+    private final ForumService forumService;
 
     @Transactional
     public CommentDTO createComment(CommentMessage message, Authentication authentication) {
         User currentUser = userService.getCurrentUser(authentication);
+        forumService.validateForumInteraction(currentUser);
         Discussion discussion = forumRepository.findById(message.getDiscussionId())
                 .orElseThrow(() -> new RuntimeException("Forum not found"));
 
@@ -89,6 +91,7 @@ public class CommentService {
     @Transactional
     public CommentDiscussionReplyDTO createReply(Long commentId, String content, String imageUrl, Authentication authentication) {
         User user = userService.getCurrentUser(authentication);
+        forumService.validateForumInteraction(user);
         Comment parentComment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new RuntimeException("Comment not found"));
 
@@ -153,6 +156,7 @@ public class CommentService {
     @Transactional
     public CommentDTO updateComment(Long commentId, String content, String imageUrl, Authentication authentication) {
         User currentUser = userService.getCurrentUser(authentication);
+        forumService.validateForumInteraction(currentUser);
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new RuntimeException("Comment not found"));
 
@@ -201,6 +205,7 @@ public class CommentService {
     @Transactional
     public CommentDiscussionReplyDTO updateReply(Long replyId, String content, String imageUrl, Authentication authentication) {
         User currentUser = userService.getCurrentUser(authentication);
+        forumService.validateForumInteraction(currentUser);
         CommentDiscussionReply reply = commentDiscussionReplyRepository.findById(replyId)
                 .orElseThrow(() -> new RuntimeException("Reply not found"));
 

@@ -92,10 +92,30 @@ public class User {
     @Column(name = "forum_creation_ban_expires_at")
     private LocalDateTime forumCreationBanExpiresAt;
 
+    @Column(name = "forum_interaction_banned", nullable = false)
+    private Boolean forumInteractionBanned = false;
+
+    @Column(name = "forum_ban_reason", length = 500)
+    private String forumBanReason;
+
+    @Column(name = "forum_ban_expires_at")
+    private LocalDateTime forumBanExpiresAt;
+
     @PreUpdate
     private void checkBanExpiry() {
+        LocalDateTime now = LocalDateTime.now();
+
+        // Check forum interaction ban
+        if (Boolean.TRUE.equals(forumInteractionBanned) && forumBanExpiresAt != null
+                && forumBanExpiresAt.isBefore(now)) {
+            forumInteractionBanned = false;
+            forumBanReason = null;
+            forumBanExpiresAt = null;
+        }
+
+        // Check forum creation ban - for backward compatibility
         if (Boolean.TRUE.equals(forumCreationBanned) && forumCreationBanExpiresAt != null
-                && forumCreationBanExpiresAt.isBefore(LocalDateTime.now())) {
+                && forumCreationBanExpiresAt.isBefore(now)) {
             forumCreationBanned = false;
             forumCreationBanReason = null;
             forumCreationBanExpiresAt = null;
@@ -104,7 +124,7 @@ public class User {
 
     public boolean isCurrentlyBanned() {
         checkBanExpiry();
-        return Boolean.TRUE.equals(forumCreationBanned);
+        return Boolean.TRUE.equals(forumInteractionBanned) || Boolean.TRUE.equals(forumCreationBanned);
     }
 
     @PrePersist

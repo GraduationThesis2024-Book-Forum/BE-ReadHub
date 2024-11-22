@@ -59,6 +59,7 @@ public class ForumService {
 
     public ForumInteractionDTO toggleLike(Long forumId, User user) {
         try {
+            validateForumInteraction(user);
             Discussion discussion = forumRepository.findById(forumId)
                     .orElseThrow(() -> new RuntimeException("Forum not found"));
 
@@ -105,6 +106,7 @@ public class ForumService {
     }
 
     public ForumInteractionDTO toggleSave(Long forumId, User user) {
+        validateForumInteraction(user);
         Discussion discussion = forumRepository.findById(forumId)
                 .orElseThrow(() -> new RuntimeException("Forum not found"));
 
@@ -141,6 +143,7 @@ public class ForumService {
 
     @Transactional
     public ForumDTO createForum(ForumRequest request, User creator) {
+        validateForumInteraction(creator);
         if (creator.isCurrentlyBanned()) {
             String banMessage = creator.getForumCreationBanExpiresAt() != null ?
                     String.format("Bạn bị cấm tạo diễn đàn đến %s",
@@ -177,6 +180,7 @@ public class ForumService {
 
     @Transactional
     public ForumDTO joinForum(Long forumId, User user) {
+        validateForumInteraction(user);
         Discussion discussion = forumRepository.findById(forumId)
                 .orElseThrow(() -> new ForumException("Diễn đàn không tồn tại"));
 
@@ -339,60 +343,175 @@ public class ForumService {
 
     @Transactional
     public ForumReport handleReportAction(Long reportId, ReportActionRequest request) {
-        ForumReport report = forumReportRepository.findById(reportId)
-                .orElseThrow(() -> new RuntimeException("Report not found"));
+        try {
+            ForumReport report = forumReportRepository.findById(reportId)
+                    .orElseThrow(() -> new RuntimeException("Report not found"));
 
-        User forumCreator = report.getForum().getCreator();
+            User forumCreator = report.getForum().getCreator();
 
-        switch (request.getAction()) {
-            case DISMISS:
-                report.setStatus(ReportStatus.DISMISSED);
-                break;
+            switch (request.getAction()) {
+                case DISMISS:
+                    report.setStatus(ReportStatus.DISMISSED);
+                    break;
 
-            case WARN:
-                report.setStatus(ReportStatus.WARNED);
-                break;
+                case WARN:
+                    report.setStatus(ReportStatus.WARNED);
+                    handleWarn(forumCreator, request.getReason());
+                    break;
 
-            case BAN_1H:
-            case BAN_3H:
-            case BAN_24H:
-                handleTemporaryBan(forumCreator, request.getAction().getBanHours());
-                report.setStatus(ReportStatus.BANNED);
-                break;
+                case BAN_1H:
+                case BAN_3H:
+                case BAN_24H:
+                    handleTemporaryBan(forumCreator, request.getAction().getBanHours(), request.getReason());
+                    report.setStatus(ReportStatus.BANNED);
+                    userRepository.saveAndFlush(forumCreator); // Ensure user is saved first
+                    break;
 
-            case BAN_PERMANENT:
-                forumCreator.setForumCreationBanned(true);
-                forumCreator.setForumCreationBanReason(request.getReason());
-                userRepository.save(forumCreator);
-                report.setStatus(ReportStatus.BANNED);
-                break;
+                case BAN_PERMANENT:
+                    handlePermanentBan(forumCreator, request.getReason());
+                    report.setStatus(ReportStatus.BANNED);
+                    userRepository.saveAndFlush(forumCreator); // Ensure user is saved first
+                    break;
+            }
+
+            report.setResolvedAt(LocalDateTime.now());
+            return forumReportRepository.saveAndFlush(report); // Use saveAndFlush
+
+        } catch (Exception e) {
+            throw new RuntimeException("Error applying report action: " + e.getMessage());
         }
-
-        report.setResolvedAt(LocalDateTime.now());
-        ForumReport savedReport = forumReportRepository.save(report);
-
-        // Send notification to user about the action
-        Map<String, String> data = Map.of(
-                "type", NotificationType.REPORT_ACTION.name(),
-                "reportId", reportId.toString(),
-                "action", request.getAction().name(),
-                "forumId", report.getForum().getDiscussionId().toString()
-        );
-
-        fcmService.sendNotification(
-                forumCreator.getUserId(),
-                NotificationType.REPORT_ACTION.getTitle(),
-                request.getAction().getNotificationMessage(),
-                data
-        );
-
-        return savedReport;
     }
 
-    private void handleTemporaryBan(User user, int hours) {
-        user.setForumCreationBanned(true);
-        user.setForumCreationBanExpiresAt(LocalDateTime.now().plusHours(hours));
-        userRepository.save(user);
+    private void handleTemporaryBan(User user, int hours, String reason) {
+        try {
+            user.setForumInteractionBanned(true);
+            user.setForumBanExpiresAt(LocalDateTime.now().plusHours(hours));
+            user.setForumBanReason(reason);
+            userRepository.saveAndFlush(user);
+
+            Map<String, String> notificationData = Map.of(
+                    "type", NotificationType.BAN.name(),
+                    "userId", user.getUserId().toString(),
+                    "duration", String.valueOf(hours),
+                    "reason", reason
+            );
+
+            String message = NotificationType.BAN.formatMessage(hours, reason);
+            fcmService.sendNotification(
+                    user.getUserId(),
+                    NotificationType.BAN.getTitle(),
+                    message,
+                    notificationData
+            );
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to apply temporary ban");
+        }
+    }
+
+    private void handlePermanentBan(User user, String reason) {
+        try {
+            user.setForumInteractionBanned(true);
+            user.setForumBanExpiresAt(null);
+            user.setForumBanReason(reason);
+            userRepository.saveAndFlush(user);
+
+            Map<String, String> notificationData = Map.of(
+                    "type", NotificationType.PERMANENT_BAN.name(),
+                    "userId", user.getUserId().toString(),
+                    "reason", reason
+            );
+
+            String message = NotificationType.PERMANENT_BAN.formatMessage(reason);
+            fcmService.sendNotification(
+                    user.getUserId(),
+                    NotificationType.PERMANENT_BAN.getTitle(),
+                    message,
+                    notificationData
+            );
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to apply permanent ban");
+        }
+    }
+
+    private void handleWarn(User user, String reason) {
+        try {
+            Map<String, String> notificationData = Map.of(
+                    "type", NotificationType.WARNING.name(),
+                    "userId", user.getUserId().toString(),
+                    "reason", reason
+            );
+
+            String message = NotificationType.WARNING.formatMessage(reason);
+            fcmService.sendNotification(
+                    user.getUserId(),
+                    NotificationType.WARNING.getTitle(),
+                    message,
+                    notificationData
+            );
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to send warning");
+        }
+    }
+
+    // Method to check comment permissions
+    public boolean canInteractWithForum(User user) {
+        if (user.getForumInteractionBanned()) {
+            LocalDateTime banExpiry = user.getForumBanExpiresAt();
+            if (banExpiry == null) {
+                return false; // Permanent ban
+            }
+            return LocalDateTime.now().isAfter(banExpiry);
+        }
+        return true;
+    }
+
+    public void validateForumInteraction(User user) {
+        if (!canInteractWithForum(user)) {
+            String banMessage = user.getForumBanExpiresAt() != null ?
+                    String.format("You are banned from forum interactions until %s", user.getForumBanExpiresAt()) :
+                    "You have been permanently banned from forum interactions";
+
+            // Send notification about attempted interaction while banned
+            Map<String, String> notificationData = Map.of(
+                    "type", NotificationType.BAN.name(),
+                    "userId", user.getUserId().toString(),
+                    "bannedUntil", user.getForumBanExpiresAt() != null ?
+                            user.getForumBanExpiresAt().toString() : "PERMANENT"
+            );
+
+            fcmService.sendNotification(
+                    user.getUserId(),
+                    "Forum Access Restricted",
+                    banMessage,
+                    notificationData
+            );
+
+            throw new RuntimeException(banMessage);
+        }
+
+        // If ban has expired, remove the ban status
+        if (Boolean.TRUE.equals(user.getForumInteractionBanned()) &&
+                user.getForumBanExpiresAt() != null &&
+                user.getForumBanExpiresAt().isBefore(LocalDateTime.now())) {
+
+            user.setForumInteractionBanned(false);
+            user.setForumBanReason(null);
+            user.setForumBanExpiresAt(null);
+            userRepository.save(user);
+
+            // Send notification about ban expiry
+            Map<String, String> notificationData = Map.of(
+                    "type", NotificationType.BAN_EXPIRED.name(),
+                    "userId", user.getUserId().toString()
+            );
+
+            fcmService.sendNotification(
+                    user.getUserId(),
+                    "Forum Access Restored",
+                    "Your forum interaction restrictions have been lifted. You can now participate in forums again.",
+                    notificationData
+            );
+        }
     }
 
     public void banUser(User user, String reason, Integer hours) {
