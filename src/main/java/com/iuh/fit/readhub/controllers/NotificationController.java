@@ -13,20 +13,21 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.logging.Logger;
 
 @RestController
 @RequestMapping("/api/v1/notifications")
 public class NotificationController {
     private final FCMService fcmService;
     private final UserService userService;
-    private final UserDeviceRepository userDeviceRepository;
 
-    public NotificationController(FCMService fcmService, UserService userService, UserDeviceRepository userDeviceRepository) {
+    // Use a Set to track recent registrations
+    private final Set<String> recentRegistrations = Collections.synchronizedSet(new HashSet<>());
+
+    public NotificationController(FCMService fcmService, UserService userService) {
         this.fcmService = fcmService;
         this.userService = userService;
-        this.userDeviceRepository = userDeviceRepository;
     }
 
     @PostMapping("/register-device")
@@ -34,18 +35,30 @@ public class NotificationController {
             @RequestBody Map<String, String> request,
             Authentication authentication) {
         try {
-            User user = userService.getCurrentUser(authentication);
-            System.out.println("KKKKKKKKKKK" + user.getUserId() + request.get("fcmToken"));
-            fcmService.registerDevice(user.getUserId(), request.get("fcmToken"));
+            String fcmToken = request.get("fcmToken");
 
-            List<UserDevice> devices = userDeviceRepository.findByUserId(user.getUserId());
-            System.out.println("KKKKKKKKKKKKKKK2 "+  user.getUserId()+ devices.size());
+            // Check if this is a duplicate request
+            if (!recentRegistrations.add(fcmToken)) {
+                return ResponseEntity.ok(ApiResponse.builder()
+                        .message("Device already registered")
+                        .status(200)
+                        .success(true)
+                        .build());
+            }
 
-            return ResponseEntity.ok(ApiResponse.builder()
-                    .message("Device registered successfully")
-                    .status(200)
-                    .success(true)
-                    .build());
+            try {
+                User user = userService.getCurrentUser(authentication);
+                fcmService.registerDevice(user.getUserId(), fcmToken);
+
+                return ResponseEntity.ok(ApiResponse.builder()
+                        .message("Device registered successfully")
+                        .status(200)
+                        .success(true)
+                        .build());
+            } finally {
+                // Remove from recent registrations after processing
+                recentRegistrations.remove(fcmToken);
+            }
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.builder()
                     .message("Error registering device: " + e.getMessage())
