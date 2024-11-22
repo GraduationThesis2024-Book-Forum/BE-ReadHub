@@ -54,30 +54,54 @@ public class RecommendationService {
             }
 
             // Lấy book details và subjects bất đồng bộ
-            List<CompletableFuture<Map<String, Integer>>> futures = new ArrayList<>();
+            List<CompletableFuture<Map<String, Integer>>> subjectFutures = new ArrayList<>();
+            List<CompletableFuture<Map<String, Integer>>> authorFutures = new ArrayList<>();
+
             for (Long bookId : userBookIds.subList(0, Math.min(5, userBookIds.size()))) {
-                futures.add(analyzeBookSubjectsAsync(bookId));
+                subjectFutures.add(analyzeBookSubjectsAsync(bookId));
+                authorFutures.add(analyzeBookAuthorsAsync(bookId));
             }
 
             // Gộp kết quả subjects
             Map<String, Integer> subjectFrequencyMap = new HashMap<>();
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-            for (CompletableFuture<Map<String, Integer>> future : futures) {
+            CompletableFuture.allOf(subjectFutures.toArray(new CompletableFuture[0])).join();
+            for (CompletableFuture<Map<String, Integer>> future : subjectFutures) {
                 future.get().forEach((k, v) -> subjectFrequencyMap.merge(k, v, Integer::sum));
             }
 
-            // Lấy top subjects
+            // Gộp kết quả authors
+            Map<String, Integer> authorFrequencyMap = new HashMap<>();
+            CompletableFuture.allOf(authorFutures.toArray(new CompletableFuture[0])).join();
+            for (CompletableFuture<Map<String, Integer>> future : authorFutures) {
+                future.get().forEach((k, v) -> authorFrequencyMap.merge(k, v, Integer::sum));
+            }
+
+            // Lấy top subjects và authors
             List<String> topSubjects = subjectFrequencyMap.entrySet().stream()
                     .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
                     .limit(3)
                     .map(Map.Entry::getKey)
                     .collect(Collectors.toList());
 
-            // Tìm sách theo subjects bất đồng bộ
-            Set<Long> recommendedBooks = ConcurrentHashMap.newKeySet();
-            List<CompletableFuture<Void>> searchFutures = topSubjects.stream()
-                    .map(subject -> findBooksBySubjectAsync(subject, recommendedBooks, new HashSet<>(userBookIds)))
+            List<String> topAuthors = authorFrequencyMap.entrySet().stream()
+                    .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+                    .limit(3)
+                    .map(Map.Entry::getKey)
                     .collect(Collectors.toList());
+
+            // Tìm sách theo subjects và authors bất đồng bộ
+            Set<Long> recommendedBooks = ConcurrentHashMap.newKeySet();
+            List<CompletableFuture<Void>> searchFutures = new ArrayList<>();
+
+            // Thêm tìm kiếm theo subjects
+            searchFutures.addAll(topSubjects.stream()
+                    .map(subject -> findBooksBySubjectAsync(subject, recommendedBooks, new HashSet<>(userBookIds)))
+                    .collect(Collectors.toList()));
+
+            // Thêm tìm kiếm theo authors
+            searchFutures.addAll(topAuthors.stream()
+                    .map(author -> findBooksByAuthorAsync(author, recommendedBooks, new HashSet<>(userBookIds)))
+                    .collect(Collectors.toList()));
 
             // Đợi tất cả hoàn thành
             CompletableFuture.allOf(searchFutures.toArray(new CompletableFuture[0])).join();
@@ -188,5 +212,44 @@ public class RecommendationService {
         getCachedPopularBooks().stream()
                 .filter(id -> !userBooks.contains(id))
                 .forEach(recommendedBooks::add);
+    }
+    @Async
+    protected CompletableFuture<Map<String, Integer>> analyzeBookAuthorsAsync(Long bookId) {
+        Map<String, Integer> authorFrequency = new HashMap<>();
+        try {
+            JsonNode bookDetails = getBookDetails(bookId);
+            if (bookDetails != null && bookDetails.has("authors")) {
+                bookDetails.get("authors").forEach(author -> {
+                    if (author.has("name")) {
+                        String authorName = author.get("name").asText();
+                        authorFrequency.merge(authorName, 1, Integer::sum);
+                    }
+                });
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return CompletableFuture.completedFuture(authorFrequency);
+    }
+
+    @Async
+    protected CompletableFuture<Void> findBooksByAuthorAsync(String author, Set<Long> recommendedBooks, Set<Long> userBooks) {
+        try {
+            String url = GUTENDEX_API + "?search=" + author.split(",")[0]; // Tìm theo họ của tác giả
+            ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
+            JsonNode results = objectMapper.readTree(response.getBody()).get("results");
+
+            StreamSupport.stream(results.spliterator(), false)
+                    .filter(book -> book.has("authors") &&
+                            book.get("authors").findValues("name")
+                                    .stream()
+                                    .anyMatch(name -> name.asText().contains(author)))
+                    .map(book -> book.get("id").asLong())
+                    .filter(id -> !userBooks.contains(id))
+                    .forEach(recommendedBooks::add);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return CompletableFuture.completedFuture(null);
     }
 }
