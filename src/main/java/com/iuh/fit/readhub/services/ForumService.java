@@ -276,18 +276,29 @@ public class ForumService {
             // Notify admins
             List<User> admins = userService.getAllAdmins();
             for (User admin : admins) {
-                Map<String, String> data = Map.of(
+                // Data cho notification
+                Map<String, String> notificationData = Map.of(
                         "type", NotificationType.FORUM_REPORT.name(),
                         "forumId", forumId.toString(),
+                        "reportId", report.getId().toString(), // Thêm reportId
                         "reporterId", reporter.getUserId().toString(),
                         "reason", reason.name()
                 );
 
+                // Tạo nội dung thông báo chi tiết hơn
+                String notificationMessage = String.format(
+                        "Forum '%s' has been reported by %s for %s",
+                        forum.getForumTitle(),
+                        reporter.getFullName(),
+                        reason.getDescription()
+                );
+
+                // Gửi và lưu notification
                 fcmService.sendNotification(
                         admin.getUserId(),
-                        NotificationType.FORUM_REPORT.getTitle(),
-                        NotificationType.FORUM_REPORT.formatMessage(reason.getDescription()),
-                        data
+                        "New Forum Report", // Title rõ ràng hơn
+                        notificationMessage,
+                        notificationData
                 );
             }
         } catch (Exception e) {
