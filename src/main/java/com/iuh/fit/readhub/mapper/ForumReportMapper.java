@@ -18,6 +18,7 @@ public class ForumReportMapper {
                         .discussionId(report.getForum().getDiscussionId())
                         .forumTitle(report.getForum().getForumTitle())
                         .forumDescription(report.getForum().getForumDescription())
+                        .imageUrl(report.getForum().getImageUrl())
                         .build())
                 .reporter(userMapper.toDTO(report.getReporter()))
                 .reason(report.getReason())
