@@ -29,11 +29,11 @@ public class NotificationEntity {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String message;
 
-    @Column(name = "notification_type")
+    @Column(length = 50,name = "notification_type")
     @Enumerated(EnumType.STRING)
     private NotificationType type;
 
-    @Column(columnDefinition = "JSON")
+    @Column(columnDefinition = "TEXT")
     private String data;
 
     @Column(name = "is_read", nullable = false)

@@ -17,6 +17,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -66,6 +67,16 @@ public class UserController {
                 return new ResponseEntity<>("Người dùng không tồn tại", HttpStatus.NOT_FOUND);
             }
             User user = userOptional.get();
+            // Check and update ban status if expired
+            if (Boolean.TRUE.equals(user.getForumInteractionBanned()) &&
+                    user.getForumBanExpiresAt() != null &&
+                    user.getForumBanExpiresAt().isBefore(LocalDateTime.now())) {
+                user.setForumInteractionBanned(false);
+                user.setForumBanReason(null);
+                user.setForumBanExpiresAt(null);
+                userRepository.save(user);
+            }
+
             UserResponse userResponse = UserResponse.builder()
                     .userId(user.getUserId())
                     .email(user.getEmail())
@@ -73,6 +84,10 @@ public class UserController {
                     .fullName(user.getFullName())
                     .role(user.getRole().toString())
                     .urlAvatar(user.getUrlAvatar())
+                    // Add ban information
+                    .forumInteractionBanned(user.getForumInteractionBanned())
+                    .forumBanReason(user.getForumBanReason())
+                    .forumBanExpiresAt(user.getForumBanExpiresAt())
                     .build();
 
             return new ResponseEntity<>(userResponse, HttpStatus.OK);
