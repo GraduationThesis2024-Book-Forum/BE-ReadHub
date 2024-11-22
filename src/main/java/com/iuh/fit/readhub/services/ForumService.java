@@ -63,7 +63,6 @@ public class ForumService {
                     .orElseThrow(() -> new RuntimeException("Forum not found"));
 
             boolean exists = forumLikeRepository.existsByDiscussionAndUser(discussion, user);
-            boolean isNewLike = false;
 
             if (exists) {
                 forumLikeRepository.deleteByDiscussionAndUser(discussion, user);
@@ -73,26 +72,33 @@ public class ForumService {
                         .user(user)
                         .build();
                 forumLikeRepository.save(like);
-                isNewLike = true;
-            }
 
-            // Send notification only for new likes
-            if (isNewLike) {
+                // Thêm notification khi có like mới
                 Map<String, String> data = Map.of(
                         "type", NotificationType.FORUM_LIKE.name(),
-                        "forumId", forumId.toString(),
+                        "forumId", discussion.getDiscussionId().toString(),
                         "userId", user.getUserId().toString()
                 );
 
                 fcmService.sendNotification(
                         discussion.getCreator().getUserId(),
-                        NotificationType.FORUM_LIKE.getTitle(),
-                        NotificationType.FORUM_LIKE.formatMessage(user.getUsername()),
+                        "New Forum Like",
+                        user.getUsername() + " liked your forum: " + discussion.getForumTitle(),
                         data
                 );
             }
 
-            return getForumInteractions(forumId, user);
+            // Tính toán lại các tương tác sau khi thay đổi
+            boolean isLiked = forumLikeRepository.existsByDiscussionAndUser(discussion, user);
+            boolean isSaved = forumSaveRepository.existsByDiscussionAndUser(discussion, user);
+            long likeCount = forumLikeRepository.countByDiscussion(discussion);
+
+            return ForumInteractionDTO.builder()
+                    .isLiked(isLiked)
+                    .isSaved(isSaved)
+                    .likeCount(likeCount)
+                    .build();
+
         } catch (Exception e) {
             throw new ForumException("Không thể thực hiện thao tác này");
         }
@@ -169,12 +175,10 @@ public class ForumService {
         Discussion discussion = forumRepository.findById(forumId)
                 .orElseThrow(() -> new ForumException("Diễn đàn không tồn tại"));
 
-        // Kiểm tra xem user đã join chưa
         if (forumMemberRepository.existsByDiscussion_DiscussionIdAndUser_UserId(forumId, user.getUserId())) {
             throw new ForumException("Bạn đã là thành viên của diễn đàn này");
         }
 
-        // Tạo ForumMember mới
         ForumMember member = ForumMember.builder()
                 .discussion(discussion)
                 .user(user)
@@ -182,7 +186,20 @@ public class ForumService {
 
         forumMemberRepository.save(member);
 
-        // Refresh và convert to DTO
+        // Add notification for forum creator
+        Map<String, String> data = Map.of(
+                "type", NotificationType.NEW_MEMBER.name(),
+                "forumId", discussion.getDiscussionId().toString(),
+                "userId", user.getUserId().toString()
+        );
+
+        fcmService.sendNotification(
+                discussion.getCreator().getUserId(),
+                "New Forum Member",
+                user.getUsername() + " joined your forum: " + discussion.getForumTitle(),
+                data
+        );
+
         Discussion updatedDiscussion = forumRepository.findById(forumId)
                 .orElseThrow(() -> new ForumException("Không thể cập nhật thông tin diễn đàn"));
 
