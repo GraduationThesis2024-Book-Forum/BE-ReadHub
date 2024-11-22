@@ -8,12 +8,16 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class UserService {
+    private static final
+    Logger logger = LoggerFactory.getLogger(UserService.class);
     private final UserRepository userRepository;
     private final S3Service s3Service;
     private final PasswordEncoder passwordEncoder;
@@ -29,7 +33,7 @@ public class UserService {
                 .orElseGet(() -> userRepository.findByEmailIgnoreCase(identifier)
                         .orElseThrow(() -> new RuntimeException("User not found")));
 
-        System.out.println("Getting user for username: {}"+ user.getUserId());
+        logger.info("Getting user: ID={}, username={}", user.getUserId(), user.getUsername());
         return user;
     }
 

@@ -5,82 +5,103 @@ import com.iuh.fit.readhub.models.UserDevice;
 import com.iuh.fit.readhub.repositories.UserDeviceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
 public class FCMService {
+    private static final Logger logger =LoggerFactory.getLogger(FCMService.class);
     private final FirebaseMessaging firebaseMessaging;
     private final UserDeviceRepository userDeviceRepository;
 
-    public void registerDevice(Long userId, String fcmToken) {
+    @Transactional(isolation = Isolation.SERIALIZABLE)
+    public synchronized void registerDevice(Long userId, String fcmToken) {
         try {
-            if (fcmToken == null || fcmToken.isEmpty()) {
-                log.warn("Token không hợp lệ cho user: {}", userId);
-                return;
-            }
+            logger.info("Registering device for user {} with token {}", userId, fcmToken);
 
-            userDeviceRepository.findByFcmToken(fcmToken).ifPresentOrElse(
-                    device -> {
-                        device.setUserId(userId);
-                        device.updateLastUsedAt();
-                        userDeviceRepository.save(device);
-                        log.info("Cập nhật token cho user: {}", userId);
-                    },
-                    () -> {
-                        UserDevice newDevice = UserDevice.builder()
-                                .userId(userId)
-                                .fcmToken(fcmToken)
-                                .build();
-                        userDeviceRepository.save(newDevice);
-                        log.info("Đăng ký token mới cho user: {}", userId);
-                    }
-            );
+            // Delete existing token first
+            userDeviceRepository.deleteByFcmToken(fcmToken);
+
+            // Create new device
+            UserDevice device = UserDevice.builder()
+                    .userId(userId)
+                    .fcmToken(fcmToken)
+                    .lastUsedAt(LocalDateTime.now())
+                    .build();
+
+            device = userDeviceRepository.save(device);
+            logger.info("Device registered successfully. ID: {}", device.getId());
+
+        } catch (DataIntegrityViolationException e) {
+            logger.error("Duplicate token detected. Retrying registration...");
+            // If duplicate, try to update existing
+            userDeviceRepository.findByFcmToken(fcmToken)
+                    .ifPresent(existingDevice -> {
+                        existingDevice.setUserId(userId);
+                        existingDevice.setLastUsedAt(LocalDateTime.now());
+                        userDeviceRepository.save(existingDevice);
+                        logger.info("Updated existing device instead of creating new one");
+                    });
         } catch (Exception e) {
-            log.error("Lỗi đăng ký thiết bị: {}", e.getMessage());
-            throw new RuntimeException("Không thể đăng ký thiết bị", e);
+            logger.error("Failed to register device for user {}: {}", userId, e.getMessage());
+            throw new RuntimeException("Failed to register device", e);
         }
     }
 
     public void sendNotification(Long userId, String title, String body, Map<String, String> data) {
         try {
-            List<String> tokens = userDeviceRepository.findByUserId(userId)
-                    .stream()
-                    .map(UserDevice::getFcmToken)
-                    .filter(token -> token != null && !token.isEmpty())
-                    .collect(Collectors.toList());
+            logger.info("Finding devices for user {}", userId);
+            List<UserDevice> devices = userDeviceRepository.findByUserId(userId);
 
-            if (tokens.isEmpty()) {
-                log.warn("Không tìm thấy token cho user: {}", userId);
+            if (devices.isEmpty()) {
+                logger.warn("No devices found for user {}", userId);
                 return;
             }
 
-            Message message = Message.builder()
-                    .setNotification(Notification.builder()
-                            .setTitle(title)
-                            .setBody(body)
-                            .build())
-                    .putAllData(data)
-                    .setToken(tokens.get(0)) // Gửi cho token đầu tiên
-                    .build();
+            logger.info("Found {} devices for user {}", devices.size(), userId);
 
-            try {
-                String response = firebaseMessaging.send(message);
-                log.info("Gửi thông báo thành công: {}", response);
-            } catch (FirebaseMessagingException e) {
-                log.error("Lỗi gửi thông báo: {}", e.getMessage());
-                handleMessagingError(e, tokens.get(0));
+            for (UserDevice device : devices) {
+                try {
+                    Message message = Message.builder()
+                            .setNotification(Notification.builder()
+                                    .setTitle(title)
+                                    .setBody(body)
+                                    .build())
+                            .putAllData(data)
+                            .setToken(device.getFcmToken())
+                            .build();
+
+                    String response = firebaseMessaging.send(message);
+                    logger.info("Notification sent to device {}. Response: {}", device.getId(), response);
+
+                    // Update last used time
+                    device.setLastUsedAt(LocalDateTime.now());
+                    userDeviceRepository.save(device);
+
+                } catch (FirebaseMessagingException e) {
+                    if (e.getMessagingErrorCode() == MessagingErrorCode.UNREGISTERED) {
+                        logger.warn("Token expired for device {}. Deleting...", device.getId());
+                        userDeviceRepository.delete(device);
+                    } else {
+                        logger.error("Failed to send notification to device {}", device.getId(), e);
+                    }
+                }
             }
-
         } catch (Exception e) {
-            log.error("Lỗi không xác định: {}", e.getMessage());
+            logger.error("Failed to send notifications to user {}", userId, e);
         }
     }
+
     private void handleSendResponse(BatchResponse response, List<String> tokens) {
         List<SendResponse> responses = response.getResponses();
         for (int i = 0; i < responses.size(); i++) {

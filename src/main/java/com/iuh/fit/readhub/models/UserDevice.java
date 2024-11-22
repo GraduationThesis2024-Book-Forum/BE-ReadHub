@@ -9,7 +9,9 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "user_devices")
+@Table(name = "user_devices",
+        uniqueConstraints = @UniqueConstraint(columnNames = "fcm_token")
+)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -19,12 +21,13 @@ public class UserDevice {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(nullable = false)
+    @Column(name = "fcm_token", nullable = false, unique = true)
     private String fcmToken;
 
+    @Column(name = "last_used_at", nullable = false)
     private LocalDateTime lastUsedAt;
 
     @PrePersist
