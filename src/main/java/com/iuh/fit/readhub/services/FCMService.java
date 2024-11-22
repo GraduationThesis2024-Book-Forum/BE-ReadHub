@@ -1,6 +1,7 @@
 package com.iuh.fit.readhub.services;
 
 import com.google.firebase.messaging.*;
+import com.iuh.fit.readhub.constants.NotificationType;
 import com.iuh.fit.readhub.models.UserDevice;
 import com.iuh.fit.readhub.repositories.UserDeviceRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ public class FCMService {
     private static final Logger logger =LoggerFactory.getLogger(FCMService.class);
     private final FirebaseMessaging firebaseMessaging;
     private final UserDeviceRepository userDeviceRepository;
+    private final NotificationService notificationService;
 
     @Transactional(isolation = Isolation.SERIALIZABLE)
     public synchronized void registerDevice(Long userId, String fcmToken) {
@@ -60,7 +62,13 @@ public class FCMService {
 
     public void sendNotification(Long userId, String title, String body, Map<String, String> data) {
         try {
-            logger.info("Finding devices for user {}", userId);
+            notificationService.saveNotification(
+                    userId,
+                    title,
+                    body,
+                    NotificationType.valueOf(data.get("type")),
+                    data
+            );
             List<UserDevice> devices = userDeviceRepository.findByUserId(userId);
 
             if (devices.isEmpty()) {
