@@ -257,6 +257,7 @@ public class ForumService {
         forumMemberRepository.deleteByDiscussion(forum);
         forumLikeRepository.deleteByDiscussion(forum);
         forumSaveRepository.deleteByDiscussion(forum);
+        forumReportRepository.deleteByDiscussion(forum);
 
         // Xóa các comment và reply
         forum.getComments().forEach(comment -> {

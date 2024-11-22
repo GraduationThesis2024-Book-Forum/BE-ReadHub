@@ -5,6 +5,7 @@ import com.iuh.fit.readhub.models.Discussion;
 import com.iuh.fit.readhub.models.ForumReport;
 import com.iuh.fit.readhub.models.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
@@ -33,4 +34,9 @@ public interface ForumReportRepository extends JpaRepository<ForumReport, Long> 
 
     @Query("SELECT COUNT(fr) FROM ForumReport fr WHERE fr.forum.discussionId = :forumId AND fr.status = :status")
     long countByForumAndStatus(Long forumId, ReportStatus status);
+
+    @Modifying
+    @Query("DELETE FROM ForumReport fs WHERE fs.forum = ?1")
+    void deleteByDiscussion(Discussion discussion);
+
 }
