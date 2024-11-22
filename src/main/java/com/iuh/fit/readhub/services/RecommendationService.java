@@ -3,13 +3,10 @@ package com.iuh.fit.readhub.services;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.iuh.fit.readhub.SavedBookRepository;
-import com.iuh.fit.readhub.models.ReadingHistory;
-import com.iuh.fit.readhub.models.SavedBook;
 import com.iuh.fit.readhub.repositories.ReadingHistoryRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.ResponseEntity;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -21,16 +18,16 @@ import java.util.stream.StreamSupport;
 
 @Service
 public class RecommendationService {
-
     private static final int MAX_RECOMMENDATIONS = 20;
     private static final String GUTENDEX_API = "https://gutendex.com/books";
+    private static final long CACHE_DURATION = 3600000; // 1 giờ
 
-    // Cache cho book details để tránh gọi API nhiều lần
+    // Cache system
     private static final Map<Long, JsonNode> bookDetailsCache = new ConcurrentHashMap<>();
     private static final Map<String, List<Long>> subjectBooksCache = new ConcurrentHashMap<>();
+    private static final Map<String, List<Long>> authorBooksCache = new ConcurrentHashMap<>();
     private static List<Long> popularBooksCache = null;
     private static long popularBooksCacheTime = 0;
-    private static final long CACHE_DURATION = 1800000; // 30 phút
 
     @Autowired
     private SavedBookRepository savedBookRepository;
@@ -47,45 +44,63 @@ public class RecommendationService {
     @Cacheable(value = "recommendations", key = "#userId")
     public List<Long> getRecommendedBookIds(Long userId) {
         try {
-            // Lấy danh sách sách của user
             List<Long> userBookIds = getUserBooks(userId);
             if (userBookIds.isEmpty()) {
                 return getCachedPopularBooks();
             }
 
-            // Lấy book details và subjects bất đồng bộ
-            List<CompletableFuture<Map<String, Integer>>> futures = new ArrayList<>();
-            for (Long bookId : userBookIds.subList(0, Math.min(5, userBookIds.size()))) {
-                futures.add(analyzeBookSubjectsAsync(bookId));
+            // Giảm số lượng sách phân tích xuống 3 cuốn gần nhất
+            List<Long> recentBooks = userBookIds.subList(0, Math.min(3, userBookIds.size()));
+
+            // Phân tích song song subjects và authors
+            Map<String, Integer> subjectFrequencyMap = new ConcurrentHashMap<>();
+            Map<String, Integer> authorFrequencyMap = new ConcurrentHashMap<>();
+            List<CompletableFuture<?>> analysisFutures = new ArrayList<>();
+
+            for (Long bookId : recentBooks) {
+                CompletableFuture<JsonNode> bookDetailsFuture = CompletableFuture.supplyAsync(() -> getBookDetails(bookId));
+
+                analysisFutures.add(bookDetailsFuture.thenAcceptAsync(bookDetails -> {
+                    if (bookDetails != null) {
+                        analyzeBookDetails(bookDetails, subjectFrequencyMap, authorFrequencyMap);
+                    }
+                }));
             }
 
-            // Gộp kết quả subjects
-            Map<String, Integer> subjectFrequencyMap = new HashMap<>();
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-            for (CompletableFuture<Map<String, Integer>> future : futures) {
-                future.get().forEach((k, v) -> subjectFrequencyMap.merge(k, v, Integer::sum));
-            }
+            // Đợi phân tích hoàn thành
+            CompletableFuture.allOf(analysisFutures.toArray(new CompletableFuture[0])).join();
 
-            // Lấy top subjects
-            List<String> topSubjects = subjectFrequencyMap.entrySet().stream()
-                    .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
-                    .limit(3)
-                    .map(Map.Entry::getKey)
-                    .collect(Collectors.toList());
+            // Lấy top subjects và authors
+            List<String> topSubjects = getTopEntries(subjectFrequencyMap, 2);
+            List<String> topAuthors = getTopEntries(authorFrequencyMap, 2);
 
-            // Tìm sách theo subjects bất đồng bộ
+            // Tìm sách theo subjects và authors
             Set<Long> recommendedBooks = ConcurrentHashMap.newKeySet();
-            List<CompletableFuture<Void>> searchFutures = topSubjects.stream()
-                    .map(subject -> findBooksBySubjectAsync(subject, recommendedBooks, new HashSet<>(userBookIds)))
-                    .collect(Collectors.toList());
+            Set<Long> userBooksSet = new HashSet<>(userBookIds);
+
+            // Thực hiện song song việc tìm sách
+            List<CompletableFuture<Void>> searchFutures = new ArrayList<>();
+
+            // Tìm theo subjects
+            for (String subject : topSubjects) {
+                searchFutures.add(CompletableFuture.runAsync(() ->
+                        findBooksBySubject(subject, recommendedBooks, userBooksSet)));
+            }
+
+            // Tìm theo authors
+            for (String author : topAuthors) {
+                searchFutures.add(CompletableFuture.runAsync(() ->
+                        findBooksByAuthor(author, recommendedBooks, userBooksSet)));
+            }
+
+            // Thêm popular books song song nếu cần
+            if (recommendedBooks.size() < MAX_RECOMMENDATIONS) {
+                searchFutures.add(CompletableFuture.runAsync(() ->
+                        addPopularBooks(recommendedBooks, userBooksSet)));
+            }
 
             // Đợi tất cả hoàn thành
             CompletableFuture.allOf(searchFutures.toArray(new CompletableFuture[0])).join();
-
-            // Nếu chưa đủ, thêm sách phổ biến
-            if (recommendedBooks.size() < MAX_RECOMMENDATIONS) {
-                addPopularBooks(recommendedBooks, new HashSet<>(userBookIds));
-            }
 
             return new ArrayList<>(recommendedBooks).stream()
                     .limit(MAX_RECOMMENDATIONS)
@@ -97,6 +112,38 @@ public class RecommendationService {
         }
     }
 
+    private void analyzeBookDetails(JsonNode bookDetails,
+                                    Map<String, Integer> subjectFrequencyMap,
+                                    Map<String, Integer> authorFrequencyMap) {
+        // Phân tích subjects
+        if (bookDetails.has("subjects")) {
+            bookDetails.get("subjects").forEach(subject -> {
+                String mainSubject = subject.asText().split("--")[0].trim();
+                if (!mainSubject.equals("Fiction")) {
+                    subjectFrequencyMap.merge(mainSubject, 1, Integer::sum);
+                }
+            });
+        }
+
+        // Phân tích authors
+        if (bookDetails.has("authors")) {
+            bookDetails.get("authors").forEach(author -> {
+                if (author.has("name")) {
+                    String authorName = author.get("name").asText();
+                    authorFrequencyMap.merge(authorName, 1, Integer::sum);
+                }
+            });
+        }
+    }
+
+    private List<String> getTopEntries(Map<String, Integer> map, int limit) {
+        return map.entrySet().stream()
+                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+                .limit(limit)
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toList());
+    }
+
     private List<Long> getUserBooks(Long userId) {
         Set<Long> userBooks = new LinkedHashSet<>();
         readingHistoryRepository.findByUser_UserId(userId)
@@ -104,25 +151,6 @@ public class RecommendationService {
         savedBookRepository.findByUser_UserIdOrderBySavedAtDesc(userId)
                 .forEach(saved -> userBooks.add(saved.getBookId()));
         return new ArrayList<>(userBooks);
-    }
-
-    @Async
-    protected CompletableFuture<Map<String, Integer>> analyzeBookSubjectsAsync(Long bookId) {
-        Map<String, Integer> subjectFrequency = new HashMap<>();
-        try {
-            JsonNode bookDetails = getBookDetails(bookId);
-            if (bookDetails != null && bookDetails.has("subjects")) {
-                bookDetails.get("subjects").forEach(subject -> {
-                    String mainSubject = subject.asText().split("--")[0].trim();
-                    if (!mainSubject.equals("Fiction")) {
-                        subjectFrequency.merge(mainSubject, 1, Integer::sum);
-                    }
-                });
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return CompletableFuture.completedFuture(subjectFrequency);
     }
 
     private JsonNode getBookDetails(Long bookId) {
@@ -138,8 +166,7 @@ public class RecommendationService {
         });
     }
 
-    @Async
-    protected CompletableFuture<Void> findBooksBySubjectAsync(String subject, Set<Long> recommendedBooks, Set<Long> userBooks) {
+    private void findBooksBySubject(String subject, Set<Long> recommendedBooks, Set<Long> userBooks) {
         try {
             List<Long> subjectBooks = subjectBooksCache.computeIfAbsent(subject, s -> {
                 try {
@@ -161,7 +188,30 @@ public class RecommendationService {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return CompletableFuture.completedFuture(null);
+    }
+
+    private void findBooksByAuthor(String author, Set<Long> recommendedBooks, Set<Long> userBooks) {
+        try {
+            List<Long> authorBooks = authorBooksCache.computeIfAbsent(author, a -> {
+                try {
+                    String url = GUTENDEX_API + "?search=" + a.split(",")[0];
+                    ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
+                    JsonNode results = objectMapper.readTree(response.getBody()).get("results");
+                    return StreamSupport.stream(results.spliterator(), false)
+                            .map(book -> book.get("id").asLong())
+                            .collect(Collectors.toList());
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    return new ArrayList<>();
+                }
+            });
+
+            authorBooks.stream()
+                    .filter(id -> !userBooks.contains(id))
+                    .forEach(recommendedBooks::add);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private synchronized List<Long> getCachedPopularBooks() {
