@@ -83,7 +83,7 @@ public class ForumReportService {
     }
 
     public List<ForumReportDTO> getAllReports() {
-        return reportRepository.findAll()
+        return reportRepository.findAllOrderByReportedAtDesc()
                 .stream()
                 .map(reportMapper::toDTO)
                 .collect(Collectors.toList());

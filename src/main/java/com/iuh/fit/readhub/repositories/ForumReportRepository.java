@@ -21,8 +21,8 @@ public interface ForumReportRepository extends JpaRepository<ForumReport, Long> 
     List<ForumReport> findByReporter_UserId(Long userId);
 
     // Sắp xếp theo thời gian
-    List<ForumReport> findByForum_DiscussionIdOrderByReportedAtDesc(Long forumId);
-    List<ForumReport> findByReporter_UserIdOrderByReportedAtDesc(Long userId);
+    @Query("SELECT fr FROM ForumReport fr ORDER BY fr.reportedAt DESC")
+    List<ForumReport> findAllOrderByReportedAtDesc();
 
     // Method hiện tại
     List<ForumReport> findByForumOrderByReportedAtDesc(Discussion forum);
