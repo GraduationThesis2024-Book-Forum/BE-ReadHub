@@ -144,7 +144,7 @@ public class ForumService {
         if (creator.isCurrentlyBanned()) {
             String banMessage = creator.getForumCreationBanExpiresAt() != null ?
                     String.format("Bạn bị cấm tạo diễn đàn đến %s",
-                            creator.getForumCreationBanExpiresAt().toString()) :
+                            creator.getForumCreationBanExpiresAt()) :
                     "Bạn đã bị cấm tạo diễn đàn vĩnh viễn";
 
             throw new RuntimeException(banMessage);
@@ -167,6 +167,11 @@ public class ForumService {
                 .build();
 
         Discussion savedForum = forumRepository.save(forum);
+        ForumMember member = ForumMember.builder()
+                .discussion(savedForum)
+                .user(creator)
+                .build();
+        forumMemberRepository.save(member);
         return convertToDTO(savedForum);
     }
 
