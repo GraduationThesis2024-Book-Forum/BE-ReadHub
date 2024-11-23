@@ -5,7 +5,7 @@ import lombok.Data;
 
 @Data
 @Builder
-public class ForumInteractionDTO {
+public class DiscussionInteractionDTO {
     private boolean isLiked;
     private boolean isSaved;
     private long likeCount;

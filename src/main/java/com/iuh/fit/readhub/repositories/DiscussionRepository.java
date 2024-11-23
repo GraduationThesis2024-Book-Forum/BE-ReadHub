@@ -9,10 +9,9 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
-import java.util.Optional;
 
 @Repository
-public interface ForumRepository extends JpaRepository<Discussion, Long> {
+public interface DiscussionRepository extends JpaRepository<Discussion, Long> {
 
     @Query("SELECT d FROM Discussion d ORDER BY d.createdAt DESC")
     List<Discussion> findAllByOrderByCreatedAtDesc();

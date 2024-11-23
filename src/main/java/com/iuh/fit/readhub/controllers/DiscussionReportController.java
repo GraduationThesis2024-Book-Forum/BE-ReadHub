@@ -1,11 +1,8 @@
 package com.iuh.fit.readhub.controllers;
 
-import com.iuh.fit.readhub.constants.NotificationType;
 import com.iuh.fit.readhub.dto.ApiResponse;
-import com.iuh.fit.readhub.dto.ForumReportDTO;
-import com.iuh.fit.readhub.models.ForumReport;
-import com.iuh.fit.readhub.models.User;
-import com.iuh.fit.readhub.services.ForumReportService;
+import com.iuh.fit.readhub.dto.DiscussionReportDTO;
+import com.iuh.fit.readhub.services.DiscussionReportService;
 import com.iuh.fit.readhub.services.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -17,16 +14,16 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/forum-reports")
 @RequiredArgsConstructor
-public class ForumReportController {
+public class DiscussionReportController {
 
-    private final ForumReportService forumReportService;
+    private final DiscussionReportService discussionReportService;
     private final UserService userService;
 
     @GetMapping
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<ApiResponse<?>> getAllReports() {
         try {
-            List<ForumReportDTO> reports = forumReportService.getAllReports();
+            List<DiscussionReportDTO> reports = discussionReportService.getAllReports();
             return ResponseEntity.ok(ApiResponse.builder()
                     .message("Reports fetched successfully")
                     .status(200)
@@ -46,7 +43,7 @@ public class ForumReportController {
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<ApiResponse<?>> getPendingReports() {
         try {
-            List<ForumReportDTO> reports = forumReportService.getPendingReports();
+            List<DiscussionReportDTO> reports = discussionReportService.getPendingReports();
             return ResponseEntity.ok(ApiResponse.builder()
                     .message("Pending reports fetched successfully")
                     .status(200)
@@ -66,7 +63,7 @@ public class ForumReportController {
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<ApiResponse<?>> getReportById(@PathVariable Long id) {
         try {
-            ForumReportDTO report = forumReportService.getReportById(id);
+            DiscussionReportDTO report = discussionReportService.getReportById(id);
             return ResponseEntity.ok(ApiResponse.builder()
                     .message("Report fetched successfully")
                     .status(200)
@@ -86,7 +83,7 @@ public class ForumReportController {
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<ApiResponse<?>> getReportsByForum(@PathVariable Long forumId) {
         try {
-            List<ForumReportDTO> reports = forumReportService.getReportsByForumId(forumId);
+            List<DiscussionReportDTO> reports = discussionReportService.getReportsByForumId(forumId);
             return ResponseEntity.ok(ApiResponse.builder()
                     .message("Forum reports fetched successfully")
                     .status(200)
@@ -106,7 +103,7 @@ public class ForumReportController {
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<ApiResponse<?>> getReportsByUser(@PathVariable Long userId) {
         try {
-            List<ForumReportDTO> reports = forumReportService.getReportsByUserId(userId);
+            List<DiscussionReportDTO> reports = discussionReportService.getReportsByUserId(userId);
             return ResponseEntity.ok(ApiResponse.builder()
                     .message("User reports fetched successfully")
                     .status(200)

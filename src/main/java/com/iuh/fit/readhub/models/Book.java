@@ -21,52 +21,27 @@ public class Book {
     private Long bookId;
 
     private String title;
-    private String description;
-    private LocalDate publishedDate;
-    private Language language;
-
-    @Column(unique = true)
-    private String ISBN;
+    private String language;
 
     private String coverImage;
-    private String externalApiId;
-    private String format;
-
-
+    private String link;
     @OneToMany(mappedBy = "book")
     private Set<BookCategory> bookCategories;
 
-    @OneToMany(mappedBy = "book")
-    private Set<BookTag> bookTags;
-
-    @OneToMany(mappedBy = "book")
-    private Set<UserBookProgress> userBookProgresses;
 
     @OneToMany(mappedBy = "book")
     private Set<BookAuthor> bookAuthors;
-
-    @ManyToOne
-    @JoinColumn(name="series_id", nullable = true)
-    private Series series;
 
     @Override
     public String toString() {
         return "Book{" +
                 "bookId=" + bookId +
                 ", title='" + title + '\'' +
-                ", description='" + description + '\'' +
-                ", publishedDate=" + publishedDate +
                 ", language=" + language +
-                ", ISBN='" + ISBN + '\'' +
                 ", coverImage='" + coverImage + '\'' +
-                ", externalApiId='" + externalApiId + '\'' +
-                ", format='" + format + '\'' +
+                ", link='" + link + '\'' +
                 ", bookCategories=" + bookCategories +
-                ", bookTags=" + bookTags +
-                ", userBookProgresses=" + userBookProgresses +
                 ", bookAuthors=" + bookAuthors +
                 '}';
     }
-
-
 }

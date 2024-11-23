@@ -3,8 +3,8 @@ package com.iuh.fit.readhub.services;
 import com.iuh.fit.readhub.constants.NotificationType;
 import com.iuh.fit.readhub.constants.ReportReason;
 import com.iuh.fit.readhub.constants.ReportStatus;
-import com.iuh.fit.readhub.dto.ForumDTO;
-import com.iuh.fit.readhub.dto.ForumInteractionDTO;
+import com.iuh.fit.readhub.dto.DiscussionDTO;
+import com.iuh.fit.readhub.dto.DiscussionInteractionDTO;
 import com.iuh.fit.readhub.dto.request.ForumRequest;
 import com.iuh.fit.readhub.dto.request.ReportActionRequest;
 import com.iuh.fit.readhub.exceptions.ForumException;
@@ -23,14 +23,14 @@ import java.util.stream.Collectors;
 
 @Service
 @Transactional
-public class ForumService {
-    private final ForumRepository forumRepository;
-    private final ForumMemberRepository forumMemberRepository;
+public class DiscussionService {
+    private final DiscussionRepository discussionRepository;
+    private final DiscussionMemberRepository discussionMemberRepository;
     private final UserMapper userMapper;
     private final S3Service s3Service;
-    private final ForumLikeRepository forumLikeRepository;
-    private final ForumSaveRepository forumSaveRepository;
-    private final ForumReportRepository forumReportRepository;
+    private final DiscussionLikeRepository discussionLikeRepository;
+    private final DiscussionSaveRepository discussionSaveRepository;
+    private final DiscussionReportRepository discussionReportRepository;
     private final UserService userService;
     private final CommentDiscussionLikeRepository commentDiscussionLikeRepository;
     private final CommentDiscussionReplyRepository commentDiscussionReplyRepository;
@@ -38,17 +38,17 @@ public class ForumService {
     private final UserRepository userRepository;
     private final FCMService fcmService;
 
-    public ForumService(ForumRepository forumRepository,
-                        ForumMemberRepository forumMemberRepository,
-                        UserMapper userMapper,
-                        S3Service s3Service, ForumLikeRepository forumLikeRepository, ForumSaveRepository forumSaveRepository, ForumReportRepository forumReportRepository, UserService userService, CommentDiscussionLikeRepository commentDiscussionLikeRepository, CommentDiscussionReplyRepository commentDiscussionReplyRepository, CommentRepository commentRepository, UserRepository userRepository, FCMService fcmService) {
-        this.forumRepository = forumRepository;
-        this.forumMemberRepository = forumMemberRepository;
+    public DiscussionService(DiscussionRepository discussionRepository,
+                             DiscussionMemberRepository discussionMemberRepository,
+                             UserMapper userMapper,
+                             S3Service s3Service, DiscussionLikeRepository discussionLikeRepository, DiscussionSaveRepository discussionSaveRepository, DiscussionReportRepository discussionReportRepository, UserService userService, CommentDiscussionLikeRepository commentDiscussionLikeRepository, CommentDiscussionReplyRepository commentDiscussionReplyRepository, CommentRepository commentRepository, UserRepository userRepository, FCMService fcmService) {
+        this.discussionRepository = discussionRepository;
         this.userMapper = userMapper;
         this.s3Service = s3Service;
-        this.forumLikeRepository = forumLikeRepository;
-        this.forumSaveRepository = forumSaveRepository;
-        this.forumReportRepository = forumReportRepository;
+        this.discussionLikeRepository = discussionLikeRepository;
+        this.discussionMemberRepository = discussionMemberRepository;
+        this.discussionReportRepository = discussionReportRepository;
+        this.discussionSaveRepository = discussionSaveRepository;
         this.userService = userService;
         this.commentDiscussionLikeRepository = commentDiscussionLikeRepository;
         this.commentDiscussionReplyRepository = commentDiscussionReplyRepository;
@@ -57,22 +57,22 @@ public class ForumService {
         this.fcmService = fcmService;
     }
 
-    public ForumInteractionDTO toggleLike(Long forumId, User user) {
+    public DiscussionInteractionDTO toggleLike(Long forumId, User user) {
         try {
             validateForumInteraction(user);
-            Discussion discussion = forumRepository.findById(forumId)
+            Discussion discussion = discussionRepository.findById(forumId)
                     .orElseThrow(() -> new RuntimeException("Forum not found"));
 
-            boolean exists = forumLikeRepository.existsByDiscussionAndUser(discussion, user);
+            boolean exists = discussionLikeRepository.existsByDiscussionAndUser(discussion, user);
 
             if (exists) {
-                forumLikeRepository.deleteByDiscussionAndUser(discussion, user);
+                discussionLikeRepository.deleteByDiscussionAndUser(discussion, user);
             } else {
-                ForumLike like = ForumLike.builder()
+                DiscussionLike like = DiscussionLike.builder()
                         .discussion(discussion)
                         .user(user)
                         .build();
-                forumLikeRepository.save(like);
+                discussionLikeRepository.save(like);
 
                 // Thêm notification khi có like mới
                 Map<String, String> data = Map.of(
@@ -90,11 +90,11 @@ public class ForumService {
             }
 
             // Tính toán lại các tương tác sau khi thay đổi
-            boolean isLiked = forumLikeRepository.existsByDiscussionAndUser(discussion, user);
-            boolean isSaved = forumSaveRepository.existsByDiscussionAndUser(discussion, user);
-            long likeCount = forumLikeRepository.countByDiscussion(discussion);
+            boolean isLiked = discussionLikeRepository.existsByDiscussionAndUser(discussion, user);
+            boolean isSaved = discussionSaveRepository.existsByDiscussionAndUser(discussion, user);
+            long likeCount = discussionLikeRepository.countByDiscussion(discussion);
 
-            return ForumInteractionDTO.builder()
+            return DiscussionInteractionDTO.builder()
                     .isLiked(isLiked)
                     .isSaved(isSaved)
                     .likeCount(likeCount)
@@ -105,36 +105,36 @@ public class ForumService {
         }
     }
 
-    public ForumInteractionDTO toggleSave(Long forumId, User user) {
+    public DiscussionInteractionDTO toggleSave(Long forumId, User user) {
         validateForumInteraction(user);
-        Discussion discussion = forumRepository.findById(forumId)
+        Discussion discussion = discussionRepository.findById(forumId)
                 .orElseThrow(() -> new RuntimeException("Forum not found"));
 
-        boolean exists = forumSaveRepository.existsByDiscussionAndUser(discussion, user);
+        boolean exists = discussionSaveRepository.existsByDiscussionAndUser(discussion, user);
         if (exists) {
-            forumSaveRepository.deleteByDiscussionAndUser(discussion, user);
+            discussionSaveRepository.deleteByDiscussionAndUser(discussion, user);
         } else {
-            ForumSave save = ForumSave.builder()
+            DiscussionSave discussionSave = DiscussionSave.builder()
                     .discussion(discussion)
                     .user(user)
                     .build();
-            forumSaveRepository.save(save);
+            discussionSaveRepository.save(discussionSave);
         }
 
         return getForumInteractions(forumId, user);
     }
 
-    public ForumInteractionDTO getForumInteractions(Long forumId, User user) {
-        Discussion discussion = forumRepository.findById(forumId)
+    public DiscussionInteractionDTO getForumInteractions(Long forumId, User user) {
+        Discussion discussion = discussionRepository.findById(forumId)
                 .orElseThrow(() -> new RuntimeException("Forum not found"));
 
         boolean isLiked = user != null &&
-                forumLikeRepository.existsByDiscussionAndUser(discussion, user);
+                discussionLikeRepository.existsByDiscussionAndUser(discussion, user);
         boolean isSaved = user != null &&
-                forumSaveRepository.existsByDiscussionAndUser(discussion, user);
-        long likeCount = forumLikeRepository.countByDiscussion(discussion);
+                discussionLikeRepository.existsByDiscussionAndUser(discussion, user);
+        long likeCount = discussionLikeRepository.countByDiscussion(discussion);
 
-        return ForumInteractionDTO.builder()
+        return DiscussionInteractionDTO.builder()
                 .isLiked(isLiked)
                 .isSaved(isSaved)
                 .likeCount(likeCount)
@@ -142,7 +142,7 @@ public class ForumService {
     }
 
     @Transactional
-    public ForumDTO createForum(ForumRequest request, User creator) {
+    public DiscussionDTO createForum(ForumRequest request, User creator) {
         validateForumInteraction(creator);
         if (creator.isCurrentlyBanned()) {
             String banMessage = creator.getForumCreationBanExpiresAt() != null ?
@@ -169,31 +169,31 @@ public class ForumService {
                 .creator(creator)
                 .build();
 
-        Discussion savedForum = forumRepository.save(forum);
-        ForumMember member = ForumMember.builder()
+        Discussion savedForum = discussionRepository.save(forum);
+        DiscussionMember member = DiscussionMember.builder()
                 .discussion(savedForum)
                 .user(creator)
                 .build();
-        forumMemberRepository.save(member);
+        discussionMemberRepository.save(member);
         return convertToDTO(savedForum);
     }
 
     @Transactional
-    public ForumDTO joinForum(Long forumId, User user) {
+    public DiscussionDTO joinForum(Long forumId, User user) {
         validateForumInteraction(user);
-        Discussion discussion = forumRepository.findById(forumId)
+        Discussion discussion = discussionRepository.findById(forumId)
                 .orElseThrow(() -> new ForumException("Diễn đàn không tồn tại"));
 
-        if (forumMemberRepository.existsByDiscussion_DiscussionIdAndUser_UserId(forumId, user.getUserId())) {
+        if (discussionMemberRepository.existsByDiscussion_DiscussionIdAndUser_UserId(forumId, user.getUserId())) {
             throw new ForumException("Bạn đã là thành viên của diễn đàn này");
         }
 
-        ForumMember member = ForumMember.builder()
+        DiscussionMember member = DiscussionMember.builder()
                 .discussion(discussion)
                 .user(user)
                 .build();
 
-        forumMemberRepository.save(member);
+        discussionMemberRepository.save(member);
 
         // Add notification for forum creator
         Map<String, String> data = Map.of(
@@ -209,23 +209,23 @@ public class ForumService {
                 data
         );
 
-        Discussion updatedDiscussion = forumRepository.findById(forumId)
+        Discussion updatedDiscussion = discussionRepository.findById(forumId)
                 .orElseThrow(() -> new ForumException("Không thể cập nhật thông tin diễn đàn"));
 
         return convertToDTO(updatedDiscussion);
     }
 
-    public List<ForumDTO> getAllForums() {
-        return forumRepository.findAllByOrderByCreatedAtDesc().stream()
+    public List<DiscussionDTO> getAllForums() {
+        return discussionRepository.findAllByOrderByCreatedAtDesc().stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
-    private ForumDTO convertToDTO(Discussion discussion) {
+    private DiscussionDTO convertToDTO(Discussion discussion) {
         // Tối ưu hóa việc lấy số lượng
-        long membersCount = forumMemberRepository.countByDiscussion_DiscussionId(discussion.getDiscussionId());
+        long membersCount = discussionMemberRepository.countByDiscussion_DiscussionId(discussion.getDiscussionId());
 
-        return ForumDTO.builder()
+        return DiscussionDTO.builder()
                 .discussionId(discussion.getDiscussionId())
                 .forumTitle(discussion.getForumTitle())
                 .forumDescription(discussion.getForumDescription())
@@ -245,28 +245,28 @@ public class ForumService {
 
     public boolean isForumMember(Long forumId, Long userId) {
         try {
-            return forumMemberRepository.existsByDiscussion_DiscussionIdAndUser_UserId(forumId, userId);
+            return discussionMemberRepository.existsByDiscussion_DiscussionIdAndUser_UserId(forumId, userId);
         } catch (Exception e) {
             return false;
         }
     }
 
-    public ForumDTO getForumById(Long forumId) {
-        Discussion forum = forumRepository.findById(forumId)
+    public DiscussionDTO getForumById(Long forumId) {
+        Discussion forum = discussionRepository.findById(forumId)
                 .orElseThrow(() -> new ForumException("Không tìm thấy diễn đàn"));
         return convertToDTO(forum);
     }
 
     @Transactional
     public void deleteForum(Long forumId) {
-        Discussion forum = forumRepository.findById(forumId)
+        Discussion forum = discussionRepository.findById(forumId)
                 .orElseThrow(() -> new ForumException("Diễn đàn không tồn tại"));
 
         // Xóa các bảng liên quan
-        forumMemberRepository.deleteByDiscussion(forum);
-        forumLikeRepository.deleteByDiscussion(forum);
-        forumSaveRepository.deleteByDiscussion(forum);
-        forumReportRepository.deleteByDiscussion(forum);
+        discussionMemberRepository.deleteByDiscussion(forum);
+        discussionLikeRepository.deleteByDiscussion(forum);
+        discussionSaveRepository.deleteByDiscussion(forum);
+        discussionReportRepository.deleteByDiscussion(forum);
 
         // Xóa các comment và reply
         forum.getComments().forEach(comment -> {
@@ -276,21 +276,21 @@ public class ForumService {
         });
 
         // Xóa forum
-        forumRepository.delete(forum);
+        discussionRepository.delete(forum);
     }
 
     @Transactional
     public void reportForum(Long forumId, User reporter, ReportReason reason, String additionalInfo) {
         try {
-            Discussion forum = forumRepository.findById(forumId)
+            Discussion forum = discussionRepository.findById(forumId)
                     .orElseThrow(() -> new ForumException("Forum not found"));
 
             if (forum.getCreator().getUserId().equals(reporter.getUserId())) {
                 throw new ForumException("You cannot report your own forum");
             }
 
-            ForumReport report = ForumReport.builder()
-                    .forum(forum)
+            DiscussionReport report = DiscussionReport.builder()
+                    .discussion(forum)
                     .reporter(reporter)
                     .reason(reason)
                     .additionalInfo(additionalInfo)
@@ -298,7 +298,7 @@ public class ForumService {
                     .status(ReportStatus.PENDING)
                     .build();
 
-            forumReportRepository.save(report);
+            discussionReportRepository.save(report);
 
             // Notify admins
             List<User> admins = userService.getAllAdmins();
@@ -336,18 +336,18 @@ public class ForumService {
 
     public boolean isForumCreator(Long forumId, Authentication authentication) {
         User currentUser = userService.getCurrentUser(authentication);
-        Discussion forum = forumRepository.findById(forumId)
+        Discussion forum = discussionRepository.findById(forumId)
                 .orElseThrow(() -> new ForumException("Diễn đàn không tồn tại"));
         return forum.getCreator().getUserId().equals(currentUser.getUserId());
     }
 
     @Transactional
-    public ForumReport handleReportAction(Long reportId, ReportActionRequest request) {
+    public DiscussionReport handleReportAction(Long reportId, ReportActionRequest request) {
         try {
-            ForumReport report = forumReportRepository.findById(reportId)
+            DiscussionReport report = discussionReportRepository.findById(reportId)
                     .orElseThrow(() -> new RuntimeException("Report not found"));
 
-            User forumCreator = report.getForum().getCreator();
+            User forumCreator = report.getDiscussion().getCreator();
 
             switch (request.getAction()) {
                 case DISMISS:
@@ -375,7 +375,7 @@ public class ForumService {
             }
 
             report.setResolvedAt(LocalDateTime.now());
-            return forumReportRepository.saveAndFlush(report); // Use saveAndFlush
+            return discussionReportRepository.saveAndFlush(report); // Use saveAndFlush
 
         } catch (Exception e) {
             throw new RuntimeException("Error applying report action: " + e.getMessage());

@@ -12,7 +12,7 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ForumDTO {
+public class DiscussionDTO {
     private Long discussionId;
     private String forumTitle;
     private String forumDescription;

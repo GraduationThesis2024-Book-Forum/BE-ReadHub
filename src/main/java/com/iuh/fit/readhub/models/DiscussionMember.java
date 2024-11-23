@@ -1,37 +1,33 @@
 package com.iuh.fit.readhub.models;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
+import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "forum_likes")
+@Table(name = "discussion_members")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ForumLike {
+public class DiscussionMember {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne
     @JoinColumn(name = "discussion_id", nullable = false)
     private Discussion discussion;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
+    @Column(name = "joined_at")
+    private LocalDateTime joinedAt;
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
+        joinedAt = LocalDateTime.now();
     }
 }

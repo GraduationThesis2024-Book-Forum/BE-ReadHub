@@ -9,12 +9,12 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "forum_saves")
+@Table(name = "discussion_likes")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ForumSave {
+public class DiscussionLike {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
