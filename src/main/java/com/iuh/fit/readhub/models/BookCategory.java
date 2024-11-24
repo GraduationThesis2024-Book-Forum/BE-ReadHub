@@ -5,7 +5,6 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import lombok.experimental.SuperBuilder;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -22,14 +21,16 @@ public class BookCategory {
     @JoinColumn(name = "book_id", nullable = false)
     private Book book;
 
-    private String categoryName;
+    @ManyToOne
+    @JoinColumn(name = "category_id", nullable = false)
+    private CategoryEntity category;
 
     @Override
     public String toString() {
         return "BookCategory{" +
                 "bookCategoryId=" + bookCategoryId +
                 ", book=" + book +
-                ", categoryName='" + categoryName + '\'' +
+                ", category='" + category + '\'' +
                 '}';
     }
 }

@@ -11,19 +11,19 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "forum_reports")
+@Table(name = "discussion_reports")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ForumReport {
+public class DiscussionReport {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne
     @JoinColumn(name = "forum_id")
-    private Discussion forum;
+    private Discussion discussion;
 
     @ManyToOne
     @JoinColumn(name = "reporter_id")

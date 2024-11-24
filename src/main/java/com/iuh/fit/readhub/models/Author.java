@@ -21,8 +21,9 @@ public class Author {
     private Long authorId;
 
     private String name;
-    private String biography;
     private LocalDate birthDate;
+    private LocalDate deathDate;
+
 
     @OneToMany(mappedBy = "author")
     private Set<BookAuthor> bookAuthors;
@@ -32,8 +33,8 @@ public class Author {
         return "Author{" +
                 "authorId=" + authorId +
                 ", name='" + name + '\'' +
-                ", biography='" + biography + '\'' +
                 ", birthDate=" + birthDate +
+                ", deathDate=" + deathDate +
                 ", bookAuthors=" + bookAuthors +
                 '}';
     }

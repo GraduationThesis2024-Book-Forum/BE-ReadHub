@@ -51,21 +51,18 @@ public class Discussion {
     private Set<Comment> comments;
 
     @OneToMany(mappedBy = "discussion")
-    private Set<ForumMember> members;
+    private Set<DiscussionMember> members;
 
     public boolean hasMember(User user) {
         return members.stream()
                 .anyMatch(member -> member.getUser().getUserId().equals(user.getUserId()));
     }
 
-    @OneToMany
-    private Set<DiscussionParticipant> discussionParticipants;
+    @OneToMany(mappedBy = "discussion", cascade = CascadeType.ALL)
+    private Set<DiscussionLike> likes = new HashSet<>();
 
     @OneToMany(mappedBy = "discussion", cascade = CascadeType.ALL)
-    private Set<ForumLike> likes = new HashSet<>();
-
-    @OneToMany(mappedBy = "discussion", cascade = CascadeType.ALL)
-    private Set<ForumSave> saves = new HashSet<>();
+    private Set<DiscussionSave> saves = new HashSet<>();
 
     @PrePersist
     protected void onCreate() {

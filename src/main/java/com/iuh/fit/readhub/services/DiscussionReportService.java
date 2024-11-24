@@ -1,12 +1,12 @@
 package com.iuh.fit.readhub.services;
 
 import com.iuh.fit.readhub.constants.ReportStatus;
-import com.iuh.fit.readhub.dto.ForumReportDTO;
+import com.iuh.fit.readhub.dto.DiscussionReportDTO;
 import com.iuh.fit.readhub.dto.request.ReportActionRequest;
-import com.iuh.fit.readhub.mapper.ForumReportMapper;
-import com.iuh.fit.readhub.models.ForumReport;
+import com.iuh.fit.readhub.mapper.DiscussionReportMapper;
+import com.iuh.fit.readhub.models.DiscussionReport;
 import com.iuh.fit.readhub.models.User;
-import com.iuh.fit.readhub.repositories.ForumReportRepository;
+import com.iuh.fit.readhub.repositories.DiscussionReportRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,18 +18,18 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class ForumReportService {
-    private final ForumReportRepository reportRepository;
-    private final ForumService forumService;
+public class DiscussionReportService {
+    private final DiscussionReportRepository reportRepository;
+    private final DiscussionService discussionService;
     private final FCMService fcmService;
-    private final ForumReportMapper reportMapper;
+    private final DiscussionReportMapper reportMapper;
 
     @Transactional
-    public ForumReport handleReportAction(Long reportId, ReportActionRequest request) {
-        ForumReport report = reportRepository.findById(reportId)
+    public DiscussionReport handleReportAction(Long reportId, ReportActionRequest request) {
+        DiscussionReport report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new RuntimeException("Report not found"));
 
-        User forumCreator = report.getForum().getCreator();
+        User discussionCreator = report.getDiscussion().getCreator();
 
         switch (request.getAction()) {
             case DISMISS:
@@ -38,23 +38,23 @@ public class ForumReportService {
 
             case WARN:
                 report.setStatus(ReportStatus.WARNED);
-                notifyUser(forumCreator, "Cảnh báo vi phạm", request.getReason());
+                notifyUser(discussionCreator, "Cảnh báo vi phạm", request.getReason());
                 break;
 
             case BAN_1H:
-                handleBan(report, forumCreator, request.getReason(), 1);
+                handleBan(report, discussionCreator, request.getReason(), 1);
                 break;
 
             case BAN_3H:
-                handleBan(report, forumCreator, request.getReason(), 3);
+                handleBan(report, discussionCreator, request.getReason(), 3);
                 break;
 
             case BAN_24H:
-                handleBan(report, forumCreator, request.getReason(), 24);
+                handleBan(report, discussionCreator, request.getReason(), 24);
                 break;
 
             case BAN_PERMANENT:
-                handleBan(report, forumCreator, request.getReason(), null);
+                handleBan(report, discussionCreator, request.getReason(), null);
                 break;
         }
 
@@ -62,9 +62,9 @@ public class ForumReportService {
         return reportRepository.save(report);
     }
 
-    private void handleBan(ForumReport report, User user, String reason, Integer hours) {
+    private void handleBan(DiscussionReport report, User user, String reason, Integer hours) {
         report.setStatus(ReportStatus.BANNED);
-        forumService.banUser(user, reason, hours);
+        discussionService.banUser(user, reason, hours);
 
         String duration = hours != null ? hours + " giờ" : "vĩnh viễn";
         String message = String.format("Bạn đã bị cấm tạo diễn đàn trong %s. Lý do: %s",
@@ -82,7 +82,7 @@ public class ForumReportService {
         fcmService.sendNotification(user.getUserId(), title, message, data);
     }
 
-    public List<ForumReportDTO> getAllReports() {
+    public List<DiscussionReportDTO> getAllReports() {
         return reportRepository.findAllOrderByReportedAtDesc()
                 .stream()
                 .map(reportMapper::toDTO)
@@ -90,7 +90,7 @@ public class ForumReportService {
     }
 
     // Lấy tất cả báo cáo đang chờ xử lý (PENDING)
-    public List<ForumReportDTO> getPendingReports() {
+    public List<DiscussionReportDTO> getPendingReports() {
         return reportRepository.findByStatus(ReportStatus.PENDING)
                 .stream()
                 .map(reportMapper::toDTO)
@@ -98,20 +98,20 @@ public class ForumReportService {
     }
 
     // Lấy báo cáo theo ID
-    public ForumReportDTO getReportById(Long id) {
-        ForumReport report = reportRepository.findById(id)
+    public DiscussionReportDTO getReportById(Long id) {
+        DiscussionReport report = reportRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Report not found"));
         return reportMapper.toDTO(report);
     }
 
-    public List<ForumReportDTO> getReportsByForumId(Long forumId) {
-        return reportRepository.findByForum_DiscussionId(forumId)
+    public List<DiscussionReportDTO> getReportsByForumId(Long forumId) {
+        return reportRepository.findByDiscussion_DiscussionId(forumId)
                 .stream()
                 .map(reportMapper::toDTO)
                 .collect(Collectors.toList());
     }
 
-    public List<ForumReportDTO> getReportsByUserId(Long userId) {
+    public List<DiscussionReportDTO> getReportsByUserId(Long userId) {
         return reportRepository.findByReporter_UserId(userId)
                 .stream()
                 .map(reportMapper::toDTO)

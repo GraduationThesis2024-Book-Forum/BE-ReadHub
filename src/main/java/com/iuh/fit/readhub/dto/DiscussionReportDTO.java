@@ -9,9 +9,9 @@ import java.time.LocalDateTime;
 
 @Data
 @Builder
-public class ForumReportDTO {
+public class DiscussionReportDTO {
     private Long id;
-    private ForumDTO forum;
+    private DiscussionDTO forum;
     private UserDTO reporter;
     private ReportReason reason;
     private String additionalInfo;

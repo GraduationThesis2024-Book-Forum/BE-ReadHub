@@ -3,16 +3,16 @@ package com.iuh.fit.readhub.controllers;
 import com.iuh.fit.readhub.constants.NotificationType;
 import com.iuh.fit.readhub.dto.ApiResponse;
 import com.iuh.fit.readhub.dto.CommentDTO;
-import com.iuh.fit.readhub.dto.ForumDTO;
-import com.iuh.fit.readhub.dto.ForumInteractionDTO;
+import com.iuh.fit.readhub.dto.DiscussionDTO;
+import com.iuh.fit.readhub.dto.DiscussionInteractionDTO;
 import com.iuh.fit.readhub.dto.request.ForumReportRequest;
 import com.iuh.fit.readhub.dto.request.ForumRequest;
 import com.iuh.fit.readhub.dto.request.ReportActionRequest;
-import com.iuh.fit.readhub.models.ForumReport;
+import com.iuh.fit.readhub.models.DiscussionReport;
 import com.iuh.fit.readhub.models.User;
 import com.iuh.fit.readhub.services.CommentService;
+import com.iuh.fit.readhub.services.DiscussionService;
 import com.iuh.fit.readhub.services.FCMService;
-import com.iuh.fit.readhub.services.ForumService;
 import com.iuh.fit.readhub.services.UserService;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -26,9 +26,9 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("api/v1/forums")
-public class ForumController {
+public class DiscussionController {
 
-    private final ForumService forumService;
+    private final DiscussionService discussionService;
 
     private final UserService userService;
 
@@ -36,11 +36,11 @@ public class ForumController {
 
     private final FCMService fcmService;
 
-    public ForumController(
-            ForumService forumService,
+    public DiscussionController(
+            DiscussionService discussionService,
             UserService userService,
             CommentService commentService, FCMService fcmService) {
-        this.forumService = forumService;
+        this.discussionService = discussionService;
         this.userService = userService;
         this.commentService = commentService;
         this.fcmService = fcmService;
@@ -49,7 +49,7 @@ public class ForumController {
     @GetMapping
     public ResponseEntity<ApiResponse<?>> getAllForums() {
         try {
-            List<ForumDTO> forums = forumService.getAllForums();
+            List<DiscussionDTO> forums = discussionService.getAllForums();
             return ResponseEntity.ok(ApiResponse.builder()
                     .message("Lấy danh sách diễn đàn thành công")
                     .status(200)
@@ -72,17 +72,17 @@ public class ForumController {
             @RequestBody ReportActionRequest request,
             Authentication authentication) {
         try {
-            ForumReport report = forumService.handleReportAction(reportId, request);
+            DiscussionReport report = discussionService.handleReportAction(reportId, request);
 
             Map<String, String> data = Map.of(
                     "type", NotificationType.REPORT_ACTION.name(),
                     "reportId", reportId.toString(),
                     "action", request.getAction().name(),
-                    "forumId", report.getForum().getDiscussionId().toString()
+                    "forumId", report.getDiscussion().getDiscussionId().toString()
             );
 
             fcmService.sendNotification(
-                    report.getForum().getCreator().getUserId(),
+                    report.getDiscussion().getCreator().getUserId(),
                     NotificationType.REPORT_ACTION.getTitle(),
                     request.getAction().getNotificationMessage(),
                     data
@@ -109,7 +109,7 @@ public class ForumController {
             Authentication authentication) {
         try {
             User creator = userService.getCurrentUser(authentication);
-            ForumDTO createdForum = forumService.createForum(request, creator);
+            DiscussionDTO createdForum = discussionService.createForum(request, creator);
 
             return ResponseEntity.ok(ApiResponse.builder()
                     .message("Tạo diễn đàn thành công")
@@ -152,7 +152,7 @@ public class ForumController {
             Authentication authentication) {
         try {
             User user = userService.getCurrentUser(authentication);
-            ForumDTO forum = forumService.joinForum(forumId, user);
+            DiscussionDTO forum = discussionService.joinForum(forumId, user);
 
             // Notify forum creator
             Map<String, String> data = new HashMap<>();
@@ -189,7 +189,7 @@ public class ForumController {
             Authentication authentication) {
         try {
             User user = userService.getCurrentUser(authentication);
-            boolean isMember = forumService.isForumMember(forumId, user.getUserId());
+            boolean isMember = discussionService.isForumMember(forumId, user.getUserId());
 
             return ResponseEntity.ok(ApiResponse.builder()
                     .message("Kiểm tra thành viên thành công")
@@ -209,7 +209,7 @@ public class ForumController {
     @GetMapping("/{forumId}")
     public ResponseEntity<ApiResponse<?>> getForumById(@PathVariable Long forumId) {
         try {
-            ForumDTO forum = forumService.getForumById(forumId);
+            DiscussionDTO forum = discussionService.getForumById(forumId);
             return ResponseEntity.ok(ApiResponse.builder()
                     .message("Lấy thông tin diễn đàn thành công")
                     .status(200)
@@ -232,7 +232,7 @@ public class ForumController {
             Authentication authentication) {
         try {
             User user = userService.getCurrentUser(authentication);
-            ForumInteractionDTO result = forumService.toggleLike(forumId, user);
+            DiscussionInteractionDTO result = discussionService.toggleLike(forumId, user);
             return ResponseEntity.ok(ApiResponse.builder()
                     .message("Cập nhật like thành công")
                     .status(200)
@@ -255,7 +255,7 @@ public class ForumController {
             Authentication authentication) {
         try {
             User user = userService.getCurrentUser(authentication);
-            ForumInteractionDTO result = forumService.toggleSave(forumId, user);
+            DiscussionInteractionDTO result = discussionService.toggleSave(forumId, user);
             return ResponseEntity.ok(ApiResponse.builder()
                     .message("Cập nhật save thành công")
                     .status(200)
@@ -277,7 +277,7 @@ public class ForumController {
             Authentication authentication) {
         try {
             User user = userService.getCurrentUser(authentication);
-            ForumInteractionDTO interactions = forumService.getForumInteractions(forumId, user);
+            DiscussionInteractionDTO interactions = discussionService.getForumInteractions(forumId, user);
             return ResponseEntity.ok(ApiResponse.builder()
                     .message("Lấy thông tin tương tác thành công")
                     .status(200)
@@ -299,7 +299,7 @@ public class ForumController {
             @PathVariable Long forumId,
             Authentication authentication) {
         try {
-            forumService.deleteForum(forumId);
+            discussionService.deleteForum(forumId);
             return ResponseEntity.ok(ApiResponse.builder()
                     .message("Xóa diễn đàn thành công")
                     .status(200)
@@ -322,7 +322,7 @@ public class ForumController {
             Authentication authentication) {
         try {
             User reporter = userService.getCurrentUser(authentication);
-            forumService.reportForum(forumId, reporter, request.getReason(), request.getAdditionalInfo());
+            discussionService.reportForum(forumId, reporter, request.getReason(), request.getAdditionalInfo());
 
             return ResponseEntity.ok(ApiResponse.builder()
                     .message("Forum reported successfully")
