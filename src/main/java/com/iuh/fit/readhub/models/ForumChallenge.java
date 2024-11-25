@@ -27,14 +27,9 @@ public class ForumChallenge {
     @Enumerated(EnumType.STRING)
     private ChallengeType type;
 
-    // Cho READING_CHALLENGE
-    private String seasonOrMonth; // 'SEASON' hoặc 'MONTH'
-    private String selectedPeriod; // Tên mùa hoặc tháng
-    private Integer targetBooks; // Số sách cần đọc
-
-    // Cho BOOK_CLUB
-    private Integer maxMembers; // Giới hạn thành viên
-
+    private String seasonOrMonth;
+    private String selectedPeriod;
+    private Integer targetBooks;
     private LocalDateTime startDate;
     private LocalDateTime endDate;
     private String reward;
@@ -43,9 +38,11 @@ public class ForumChallenge {
     @JoinColumn(name = "creator_id")
     private User creator;
 
+    @Builder.Default
     @OneToMany(mappedBy = "challenge", cascade = CascadeType.ALL)
     private Set<ChallengeMember> members = new HashSet<>();
 
+    @Builder.Default
     @OneToMany(mappedBy = "challenge")
     private Set<ChallengeDiscussion> discussions = new HashSet<>();
 

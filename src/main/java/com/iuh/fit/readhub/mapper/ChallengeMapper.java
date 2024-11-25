@@ -30,9 +30,6 @@ public class ChallengeMapper {
                 .seasonOrMonth(challenge.getSeasonOrMonth())
                 .selectedPeriod(challenge.getSelectedPeriod())
                 .targetBooks(challenge.getTargetBooks())
-                // Cho BOOK_CLUB
-                .maxMembers(challenge.getMaxMembers())
-                .isExpired(isExpired)
                 // Các trường chung
                 .startDate(challenge.getStartDate())
                 .endDate(challenge.getEndDate())
@@ -63,8 +60,6 @@ public class ChallengeMapper {
                 .seasonOrMonth(request.getSeasonOrMonth())
                 .selectedPeriod(request.getSelectedPeriod())
                 .targetBooks(request.getTargetBooks())
-                // Cho BOOK_CLUB
-                .maxMembers(request.getMaxMembers())
                 // Các trường chung
                 .startDate(request.getStartDate())
                 .endDate(request.getEndDate())

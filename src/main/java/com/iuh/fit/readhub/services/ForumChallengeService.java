@@ -51,8 +51,6 @@ public class ForumChallengeService {
             challenge.setSeasonOrMonth(request.getSeasonOrMonth());
             challenge.setSelectedPeriod(request.getSelectedPeriod());
             challenge.setTargetBooks(request.getTargetBooks());
-        } else if (request.getType() == ChallengeType.BOOK_CLUB) {
-            challenge.setMaxMembers(request.getMaxMembers());
         }
 
         return convertToDTO(challengeRepository.save(challenge));
@@ -68,12 +66,6 @@ public class ForumChallengeService {
         // Kiểm tra các điều kiện
         if (challenge.getEndDate().isBefore(LocalDateTime.now())) {
             throw new RuntimeException("Challenge has ended");
-        }
-
-        if (challenge.getType() == ChallengeType.BOOK_CLUB) {
-            if (challenge.getMembers().size() >= challenge.getMaxMembers()) {
-                throw new RuntimeException("Book club is full");
-            }
         }
 
         if (challenge.getMembers().stream()
@@ -101,14 +93,12 @@ public class ForumChallengeService {
                 .seasonOrMonth(challenge.getSeasonOrMonth())
                 .selectedPeriod(challenge.getSelectedPeriod())
                 .targetBooks(challenge.getTargetBooks())
-                .maxMembers(challenge.getMaxMembers())
                 .startDate(challenge.getStartDate())
                 .endDate(challenge.getEndDate())
                 .reward(challenge.getReward())
                 .creator(userMapper.toDTO(challenge.getCreator()))
                 .memberCount(challenge.getMembers().size())
                 .discussionCount(challenge.getDiscussions().size())
-                .isExpired(isExpired)
                 .createdAt(challenge.getCreatedAt())
                 .build();
     }
@@ -121,10 +111,6 @@ public class ForumChallengeService {
         if (request.getType() == ChallengeType.READING_CHALLENGE) {
             if (request.getTargetBooks() == null || request.getTargetBooks() <= 0) {
                 throw new RuntimeException("Invalid target books number");
-            }
-        } else if (request.getType() == ChallengeType.BOOK_CLUB) {
-            if (request.getMaxMembers() == null || request.getMaxMembers() < 2) {
-                throw new RuntimeException("Book club must allow at least 2 members");
             }
         }
     }

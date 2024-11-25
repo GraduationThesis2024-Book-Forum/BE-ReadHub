@@ -17,22 +17,15 @@ public class ChallengeDTO {
     private String title;
     private String description;
     private ChallengeType type;
-
-    // Cho READING_CHALLENGE
     private String seasonOrMonth;
     private String selectedPeriod;
     private Integer targetBooks;
-
-    // Cho BOOK_CLUB
-    private Integer maxMembers;
-    private boolean isExpired; // true nếu endDate < now
-
     private LocalDateTime startDate;
     private LocalDateTime endDate;
     private String reward;
     private UserDTO creator;
     private int memberCount;
     private int discussionCount;
-    private boolean isJoined; // Trường để check user hiện tại đã tham gia chưa
+    private boolean isJoined;
     private LocalDateTime createdAt;
 }
