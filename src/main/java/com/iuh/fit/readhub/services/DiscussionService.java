@@ -259,24 +259,43 @@ public class DiscussionService {
 
     @Transactional
     public void deleteForum(Long forumId) {
-        Discussion forum = discussionRepository.findById(forumId)
-                .orElseThrow(() -> new ForumException("Diễn đàn không tồn tại"));
+        try {
+            // Lấy forum với lock
+            Discussion forum = discussionRepository.findByIdWithLock(forumId)
+                    .orElseThrow(() -> new ForumException("Not Found Forum"));
 
-        // Xóa các bảng liên quan
-        discussionMemberRepository.deleteByDiscussion(forum);
-        discussionLikeRepository.deleteByDiscussion(forum);
-        discussionSaveRepository.deleteByDiscussion(forum);
-        discussionReportRepository.deleteByDiscussion(forum);
+            // Xóa các bảng liên quan
+            discussionMemberRepository.deleteByDiscussion(forum);
+            discussionLikeRepository.deleteByDiscussion(forum);
+            discussionSaveRepository.deleteByDiscussion(forum);
+            discussionReportRepository.deleteByDiscussion(forum);
 
-        // Xóa các comment và reply
-        forum.getComments().forEach(comment -> {
-            commentDiscussionLikeRepository.deleteByComment(comment);
-            commentDiscussionReplyRepository.deleteByParentComment(comment);
-            commentRepository.delete(comment);
-        });
+            // Xóa các comment và reply
+            if (forum.getComments() != null) {
+                for (Comment comment : new ArrayList<>(forum.getComments())) {
+                    commentDiscussionLikeRepository.deleteByComment(comment);
+                    commentDiscussionReplyRepository.deleteByParentComment(comment);
+                    forum.getComments().remove(comment);
+                    commentRepository.delete(comment);
+                }
+            }
 
-        // Xóa forum
-        discussionRepository.delete(forum);
+            // Clear all relationships
+            forum.getMembers().clear();
+            forum.getLikes().clear();
+            forum.getSaves().clear();
+            forum.setCreator(null);
+
+            // Save changes
+            discussionRepository.saveAndFlush(forum);
+
+            // Delete forum
+            discussionRepository.delete(forum);
+            discussionRepository.flush();
+        } catch (Exception e) {
+            throw new ForumException("Can't delete Forum " + e.getMessage());
+        }
+
     }
 
     @Transactional
