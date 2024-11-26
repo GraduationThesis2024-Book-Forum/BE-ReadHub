@@ -47,10 +47,10 @@ public class Discussion {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @OneToMany
+    @OneToMany(mappedBy = "discussion", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Comment> comments;
 
-    @OneToMany(mappedBy = "discussion")
+    @OneToMany(mappedBy = "discussion", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<DiscussionMember> members;
 
     public boolean hasMember(User user) {
@@ -58,10 +58,10 @@ public class Discussion {
                 .anyMatch(member -> member.getUser().getUserId().equals(user.getUserId()));
     }
 
-    @OneToMany(mappedBy = "discussion", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "discussion", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<DiscussionLike> likes = new HashSet<>();
 
-    @OneToMany(mappedBy = "discussion", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "discussion", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<DiscussionSave> saves = new HashSet<>();
 
     @PrePersist
