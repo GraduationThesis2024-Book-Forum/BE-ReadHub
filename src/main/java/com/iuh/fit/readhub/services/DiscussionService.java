@@ -11,9 +11,10 @@ import com.iuh.fit.readhub.exceptions.ForumException;
 import com.iuh.fit.readhub.mapper.UserMapper;
 import com.iuh.fit.readhub.models.*;
 import com.iuh.fit.readhub.repositories.*;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -360,14 +361,34 @@ public class DiscussionService {
         return forum.getCreator().getUserId().equals(currentUser.getUserId());
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     public DiscussionReport handleReportAction(Long reportId, ReportActionRequest request) {
         try {
-            DiscussionReport report = discussionReportRepository.findById(reportId)
-                    .orElseThrow(() -> new RuntimeException("Report not found"));
+            // Load report với lock
+            DiscussionReport report = discussionReportRepository.findByIdWithLock(reportId)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy báo cáo"));
 
-            User forumCreator = report.getDiscussion().getCreator();
+            // Kiểm tra và lấy thông tin discussion và creator
+            Discussion discussion = report.getDiscussion();
+            if (discussion == null) {
+                throw new RuntimeException("Không tìm thấy diễn đàn của báo cáo này");
+            }
 
+            User forumCreator = discussion.getCreator();
+            if (forumCreator == null) {
+                throw new RuntimeException("Diễn đàn này không có người tạo");
+            }
+
+            // Lock user để update
+            forumCreator = userRepository.findByIdWithLock(forumCreator.getUserId())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy người tạo diễn đàn"));
+
+            // Xử lý xóa forum trước nếu được yêu cầu
+            if (request.getBanTypes() != null && request.getBanTypes().isDeleteForum()) {
+                deleteForum(discussion.getDiscussionId());
+            }
+
+            // Xử lý warning hoặc ban
             switch (request.getAction()) {
                 case DISMISS:
                     report.setStatus(ReportStatus.DISMISSED);
@@ -381,41 +402,54 @@ public class DiscussionService {
                 case BAN_1H:
                 case BAN_3H:
                 case BAN_24H:
-                    handleTemporaryBan(forumCreator, request.getAction().getBanHours(), request.getReason());
+                    handleTemporaryBan(forumCreator, request.getAction().getBanHours(), request.getReason(), request.getBanTypes());
                     report.setStatus(ReportStatus.BANNED);
-                    userRepository.saveAndFlush(forumCreator); // Ensure user is saved first
                     break;
 
                 case BAN_PERMANENT:
-                    handlePermanentBan(forumCreator, request.getReason());
+                    handlePermanentBan(forumCreator, request.getReason(), request.getBanTypes());
                     report.setStatus(ReportStatus.BANNED);
-                    userRepository.saveAndFlush(forumCreator); // Ensure user is saved first
                     break;
             }
 
             report.setResolvedAt(LocalDateTime.now());
-            return discussionReportRepository.saveAndFlush(report); // Use saveAndFlush
+            return  discussionReportRepository.save(report);
 
         } catch (Exception e) {
-            throw new RuntimeException("Error applying report action: " + e.getMessage());
+            throw new RuntimeException("Lỗi khi xử lý báo cáo: " + e.getMessage(), e);
         }
     }
 
-    private void handleTemporaryBan(User user, int hours, String reason) {
+    private void handleTemporaryBan(User user, int hours, String reason, ReportActionRequest.BanTypes banTypes) {
         try {
-            user.setForumInteractionBanned(true);
-            user.setForumBanExpiresAt(LocalDateTime.now().plusHours(hours));
-            user.setForumBanReason(reason);
+            if (banTypes.isNoInteraction()) {
+                user.setForumInteractionBanned(true);
+                user.setForumBanExpiresAt(LocalDateTime.now().plusHours(hours));
+                user.setForumBanReason(reason);
+            }
+
+            if (banTypes.isNoComment()) {
+                user.setForumCommentBanned(true);
+                user.setForumCommentBanExpiresAt(LocalDateTime.now().plusHours(hours));
+            }
+
+            if (banTypes.isNoForumCreation()) { // Thêm xử lý cho ban tạo diễn đàn
+                user.setForumCreationBanned(true);
+                user.setForumCreationBanExpiresAt(LocalDateTime.now().plusHours(hours));
+                user.setForumCreationBanReason(reason);
+            }
+
             userRepository.saveAndFlush(user);
 
             Map<String, String> notificationData = Map.of(
                     "type", NotificationType.BAN.name(),
                     "userId", user.getUserId().toString(),
                     "duration", String.valueOf(hours),
-                    "reason", reason
+                    "reason", reason,
+                    "banTypes", getBanTypesString(banTypes)
             );
 
-            String message = NotificationType.BAN.formatMessage(hours, reason);
+            String message = formatBanMessage(hours, reason, banTypes);
             fcmService.sendNotification(
                     user.getUserId(),
                     NotificationType.BAN.getTitle(),
@@ -427,20 +461,36 @@ public class DiscussionService {
         }
     }
 
-    private void handlePermanentBan(User user, String reason) {
+    private void handlePermanentBan(User user, String reason, ReportActionRequest.BanTypes banTypes) {
         try {
-            user.setForumInteractionBanned(true);
-            user.setForumBanExpiresAt(null);
-            user.setForumBanReason(reason);
+            if (banTypes.isNoInteraction()) {
+                user.setForumInteractionBanned(true);
+                user.setForumBanExpiresAt(null); // Permanent
+                user.setForumBanReason(reason);
+            }
+
+            if (banTypes.isNoComment() || banTypes.isNoJoin()) {
+                user.setForumCreationBanned(true);
+                user.setForumCreationBanExpiresAt(null); // Permanent
+                user.setForumCreationBanReason(reason);
+            }
+
+            if (banTypes.isNoForumCreation()) { // Thêm xử lý cho permanent ban tạo diễn đàn
+                user.setForumCreationBanned(true);
+                user.setForumCreationBanExpiresAt(null);
+                user.setForumCreationBanReason(reason);
+            }
+
             userRepository.saveAndFlush(user);
 
             Map<String, String> notificationData = Map.of(
                     "type", NotificationType.PERMANENT_BAN.name(),
                     "userId", user.getUserId().toString(),
-                    "reason", reason
+                    "reason", reason,
+                    "banTypes", getBanTypesString(banTypes)
             );
 
-            String message = NotificationType.PERMANENT_BAN.formatMessage(reason);
+            String message = formatPermanentBanMessage(reason, banTypes);
             fcmService.sendNotification(
                     user.getUserId(),
                     NotificationType.PERMANENT_BAN.getTitle(),
@@ -551,5 +601,25 @@ public class DiscussionService {
         user.setForumCreationBanReason(null);
         user.setForumCreationBanExpiresAt(null);
         userRepository.save(user);
+    }
+
+    private String getBanTypesString(ReportActionRequest.BanTypes banTypes) {
+        List<String> restrictions = new ArrayList<>();
+        if (banTypes.isNoInteraction()) restrictions.add("forum interactions");
+        if (banTypes.isNoComment()) restrictions.add("commenting");
+        if (banTypes.isNoJoin()) restrictions.add("joining forums");
+        return String.join(", ", restrictions);
+    }
+
+    private String formatBanMessage(int hours, String reason, ReportActionRequest.BanTypes banTypes) {
+        String restrictions = getBanTypesString(banTypes);
+        return String.format("You have been banned from %s for %d hours. Reason: %s",
+                restrictions, hours, reason);
+    }
+
+    private String formatPermanentBanMessage(String reason, ReportActionRequest.BanTypes banTypes) {
+        String restrictions = getBanTypesString(banTypes);
+        return String.format("You have been permanently banned from %s. Reason: %s",
+                restrictions, reason);
     }
 }
