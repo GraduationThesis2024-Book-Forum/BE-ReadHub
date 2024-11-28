@@ -74,59 +74,15 @@ public class DiscussionController {
             @RequestBody ReportActionRequest request,
             Authentication authentication) {
         try {
+            // Xử lý report action và gửi thông báo đã được chuyển vào service
             DiscussionReport report = discussionService.handleReportAction(reportId, request);
-            User adminUser = userService.getCurrentUser(authentication);
-
-            // Create notification data with more details
-            Map<String, String> data = new HashMap<>();
-            data.put("type", NotificationType.REPORT_ACTION.name());
-            data.put("reportId", reportId.toString());
-            data.put("action", request.getAction().name());
-            data.put("forumId", report.getDiscussion().getDiscussionId().toString());
-            data.put("adminId", adminUser.getUserId().toString());
-
-            if (request.getBanTypes() != null) {
-                data.put("noInteraction", String.valueOf(request.getBanTypes().isNoInteraction()));
-                data.put("noComment", String.valueOf(request.getBanTypes().isNoComment()));
-                data.put("noJoin", String.valueOf(request.getBanTypes().isNoJoin()));
-            }
-
-            // Build a detailed notification message
-            String notificationMessage;
-            if (request.getAction().toString().startsWith("BAN_")) {
-                String duration = request.getAction() == ReportAction.BAN_PERMANENT ?
-                        "permanently" :
-                        "for " + request.getAction().getBanHours() + " hours";
-
-                List<String> restrictions = new ArrayList<>();
-                if (request.getBanTypes().isNoInteraction()) restrictions.add("forum interactions");
-                if (request.getBanTypes().isNoComment()) restrictions.add("commenting");
-                if (request.getBanTypes().isNoJoin()) restrictions.add("joining forums");
-
-                String restrictionsText = String.join(", ", restrictions);
-                notificationMessage = String.format(
-                        "You have been banned %s from: %s. Reason: %s",
-                        duration,
-                        restrictionsText,
-                        request.getReason()
-                );
-            } else {
-                notificationMessage = request.getAction().getNotificationMessage();
-            }
-
-            // Send notification to the user
-            fcmService.sendNotification(
-                    report.getDiscussion().getCreator().getUserId(),
-                    NotificationType.REPORT_ACTION.getTitle(),
-                    notificationMessage,
-                    data
-            );
 
             return ResponseEntity.ok(ApiResponse.builder()
                     .message("Report action applied successfully")
                     .status(200)
                     .success(true)
                     .build());
+
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.builder()
                     .message("Error applying report action: " + e.getMessage())

@@ -1,6 +1,7 @@
 package com.iuh.fit.readhub.services;
 
 import com.iuh.fit.readhub.constants.NotificationType;
+import com.iuh.fit.readhub.constants.ReportAction;
 import com.iuh.fit.readhub.constants.ReportReason;
 import com.iuh.fit.readhub.constants.ReportStatus;
 import com.iuh.fit.readhub.dto.DiscussionDTO;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Isolation;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -261,24 +263,26 @@ public class DiscussionService {
     @Transactional
     public void deleteForum(Long forumId) {
         try {
-            // Lấy forum với lock
             Discussion forum = discussionRepository.findByIdWithLock(forumId)
                     .orElseThrow(() -> new ForumException("Not Found Forum"));
+
+            // Xóa các reports trước
+            discussionReportRepository.deleteByDiscussion(forum);
+            discussionReportRepository.flush();
 
             // Xóa các bảng liên quan
             discussionMemberRepository.deleteByDiscussion(forum);
             discussionLikeRepository.deleteByDiscussion(forum);
             discussionSaveRepository.deleteByDiscussion(forum);
-            discussionReportRepository.deleteByDiscussion(forum);
 
             // Xóa các comment và reply
             if (forum.getComments() != null) {
                 for (Comment comment : new ArrayList<>(forum.getComments())) {
                     commentDiscussionLikeRepository.deleteByComment(comment);
                     commentDiscussionReplyRepository.deleteByParentComment(comment);
-                    forum.getComments().remove(comment);
                     commentRepository.delete(comment);
                 }
+                forum.getComments().clear();
             }
 
             // Clear all relationships
@@ -287,16 +291,12 @@ public class DiscussionService {
             forum.getSaves().clear();
             forum.setCreator(null);
 
-            // Save changes
-            discussionRepository.saveAndFlush(forum);
-
             // Delete forum
             discussionRepository.delete(forum);
             discussionRepository.flush();
         } catch (Exception e) {
-            throw new ForumException("Can't delete Forum " + e.getMessage());
+            throw new ForumException("Can't delete Forum: " + e.getMessage());
         }
-
     }
 
     @Transactional
@@ -368,6 +368,10 @@ public class DiscussionService {
             DiscussionReport report = discussionReportRepository.findByIdWithLock(reportId)
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy báo cáo"));
 
+            if (report.getStatus() != ReportStatus.PENDING) {
+                throw new RuntimeException("Report đã được xử lý");
+            }
+
             // Kiểm tra và lấy thông tin discussion và creator
             Discussion discussion = report.getDiscussion();
             if (discussion == null) {
@@ -379,14 +383,55 @@ public class DiscussionService {
                 throw new RuntimeException("Diễn đàn này không có người tạo");
             }
 
+            // Lưu lại userId của creator để gửi thông báo sau này
+            Long creatorUserId = forumCreator.getUserId();
+
             // Lock user để update
             forumCreator = userRepository.findByIdWithLock(forumCreator.getUserId())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy người tạo diễn đàn"));
 
-            // Xử lý xóa forum trước nếu được yêu cầu
-            if (request.getBanTypes() != null && request.getBanTypes().isDeleteForum()) {
-                deleteForum(discussion.getDiscussionId());
+            // Prepare notification message and data first
+            String notificationMessage;
+            Map<String, String> notificationData = new HashMap<>();
+            notificationData.put("type", NotificationType.REPORT_ACTION.name());
+            notificationData.put("reportId", reportId.toString());
+            notificationData.put("action", request.getAction().name());
+            notificationData.put("forumId", discussion.getDiscussionId().toString());
+
+            if (request.getBanTypes() != null) {
+                notificationData.put("noInteraction", String.valueOf(request.getBanTypes().isNoInteraction()));
+                notificationData.put("noComment", String.valueOf(request.getBanTypes().isNoComment()));
+                notificationData.put("noJoin", String.valueOf(request.getBanTypes().isNoJoin()));
             }
+
+            if (request.getAction().toString().startsWith("BAN_")) {
+                String duration = request.getAction() == ReportAction.BAN_PERMANENT ?
+                        "permanently" :
+                        "for " + request.getAction().getBanHours() + " hours";
+
+                List<String> restrictions = new ArrayList<>();
+                if (request.getBanTypes().isNoInteraction()) restrictions.add("forum interactions");
+                if (request.getBanTypes().isNoComment()) restrictions.add("commenting");
+                if (request.getBanTypes().isNoJoin()) restrictions.add("joining forums");
+
+                String restrictionsText = String.join(", ", restrictions);
+                notificationMessage = String.format(
+                        "You have been banned %s from: %s. Reason: %s",
+                        duration,
+                        restrictionsText,
+                        request.getReason()
+                );
+            } else {
+                notificationMessage = request.getAction().getNotificationMessage();
+            }
+
+            // Send notification before any deletion
+            fcmService.sendNotification(
+                    creatorUserId,
+                    NotificationType.REPORT_ACTION.getTitle(),
+                    notificationMessage,
+                    notificationData
+            );
 
             // Xử lý warning hoặc ban
             switch (request.getAction()) {
@@ -402,19 +447,25 @@ public class DiscussionService {
                 case BAN_1H:
                 case BAN_3H:
                 case BAN_24H:
-                    handleTemporaryBan(forumCreator, request.getAction().getBanHours(), request.getReason(), request.getBanTypes());
                     report.setStatus(ReportStatus.BANNED);
+                    handleTemporaryBan(forumCreator, request.getAction().getBanHours(), request.getReason(), request.getBanTypes());
                     break;
 
                 case BAN_PERMANENT:
-                    handlePermanentBan(forumCreator, request.getReason(), request.getBanTypes());
                     report.setStatus(ReportStatus.BANNED);
+                    handlePermanentBan(forumCreator, request.getReason(), request.getBanTypes());
                     break;
             }
 
             report.setResolvedAt(LocalDateTime.now());
-            return  discussionReportRepository.save(report);
+            DiscussionReport savedReport = discussionReportRepository.save(report);
 
+            // Xóa forum sau cùng nếu được yêu cầu
+            if (request.getBanTypes() != null && request.getBanTypes().isDeleteForum()) {
+                deleteForum(discussion.getDiscussionId());
+            }
+
+            return savedReport;
         } catch (Exception e) {
             throw new RuntimeException("Lỗi khi xử lý báo cáo: " + e.getMessage(), e);
         }
@@ -422,6 +473,7 @@ public class DiscussionService {
 
     private void handleTemporaryBan(User user, int hours, String reason, ReportActionRequest.BanTypes banTypes) {
         try {
+            // Set các trạng thái ban cho user
             if (banTypes.isNoInteraction()) {
                 user.setForumInteractionBanned(true);
                 user.setForumBanExpiresAt(LocalDateTime.now().plusHours(hours));
@@ -433,14 +485,21 @@ public class DiscussionService {
                 user.setForumCommentBanExpiresAt(LocalDateTime.now().plusHours(hours));
             }
 
-            if (banTypes.isNoForumCreation()) { // Thêm xử lý cho ban tạo diễn đàn
+            if (banTypes.isNoJoin()) {
+                user.setForumJoinBanned(true);
+                user.setForumJoinBanExpiresAt(LocalDateTime.now().plusHours(hours));
+            }
+
+            if (banTypes.isNoForumCreation()) {
                 user.setForumCreationBanned(true);
                 user.setForumCreationBanExpiresAt(LocalDateTime.now().plusHours(hours));
                 user.setForumCreationBanReason(reason);
             }
 
+            // Lưu user
             userRepository.saveAndFlush(user);
 
+            // Gửi thông báo
             Map<String, String> notificationData = Map.of(
                     "type", NotificationType.BAN.name(),
                     "userId", user.getUserId().toString(),
@@ -457,7 +516,7 @@ public class DiscussionService {
                     notificationData
             );
         } catch (Exception e) {
-            throw new RuntimeException("Failed to apply temporary ban");
+            throw new RuntimeException("Failed to apply temporary ban: " + e.getMessage());
         }
     }
 
@@ -581,19 +640,6 @@ public class DiscussionService {
                     notificationData
             );
         }
-    }
-
-    public void banUser(User user, String reason, Integer hours) {
-        user.setForumCreationBanned(true);
-        user.setForumCreationBanReason(reason);
-
-        if (hours != null) {
-            user.setForumCreationBanExpiresAt(LocalDateTime.now().plusHours(hours));
-        } else {
-            user.setForumCreationBanExpiresAt(null); // Permanent ban
-        }
-
-        userRepository.save(user);
     }
 
     public void unbanUser(User user) {
