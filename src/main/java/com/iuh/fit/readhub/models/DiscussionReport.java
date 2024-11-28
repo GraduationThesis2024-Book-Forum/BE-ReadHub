@@ -42,6 +42,9 @@ public class DiscussionReport {
     private LocalDateTime reportedAt;
     private LocalDateTime resolvedAt;
 
+    @Version
+    private Long version;
+
     @PrePersist
     protected void onCreate() {
         reportedAt = LocalDateTime.now();

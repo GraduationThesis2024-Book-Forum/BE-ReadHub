@@ -86,6 +86,18 @@ public class User {
     @Column(name = "forum_ban_expires_at")
     private LocalDateTime forumBanExpiresAt;
 
+    @Column(name = "forum_comment_banned", nullable = false)
+    private Boolean forumCommentBanned = false;
+
+    @Column(name = "forum_comment_ban_expires_at")
+    private LocalDateTime forumCommentBanExpiresAt;
+
+    @Column(name = "forum_join_banned", nullable = false)
+    private Boolean forumJoinBanned = false;
+
+    @Column(name = "forum_join_ban_expires_at")
+    private LocalDateTime forumJoinBanExpiresAt;
+
     @PreUpdate
     private void checkBanExpiry() {
         LocalDateTime now = LocalDateTime.now();
@@ -98,7 +110,21 @@ public class User {
             forumBanExpiresAt = null;
         }
 
-        // Check forum creation ban - for backward compatibility
+        // Check forum comment ban
+        if (Boolean.TRUE.equals(forumCommentBanned) && forumCommentBanExpiresAt != null
+                && forumCommentBanExpiresAt.isBefore(now)) {
+            forumCommentBanned = false;
+            forumCommentBanExpiresAt = null;
+        }
+
+        // Check forum join ban
+        if (Boolean.TRUE.equals(forumJoinBanned) && forumJoinBanExpiresAt != null
+                && forumJoinBanExpiresAt.isBefore(now)) {
+            forumJoinBanned = false;
+            forumJoinBanExpiresAt = null;
+        }
+
+        // Check forum creation ban
         if (Boolean.TRUE.equals(forumCreationBanned) && forumCreationBanExpiresAt != null
                 && forumCreationBanExpiresAt.isBefore(now)) {
             forumCreationBanned = false;
@@ -109,7 +135,10 @@ public class User {
 
     public boolean isCurrentlyBanned() {
         checkBanExpiry();
-        return Boolean.TRUE.equals(forumInteractionBanned) || Boolean.TRUE.equals(forumCreationBanned);
+        return Boolean.TRUE.equals(forumInteractionBanned) ||
+                Boolean.TRUE.equals(forumCreationBanned) ||
+                Boolean.TRUE.equals(forumCommentBanned) ||
+                Boolean.TRUE.equals(forumJoinBanned);
     }
 
     @PrePersist

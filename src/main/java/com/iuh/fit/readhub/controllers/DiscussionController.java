@@ -1,6 +1,7 @@
 package com.iuh.fit.readhub.controllers;
 
 import com.iuh.fit.readhub.constants.NotificationType;
+import com.iuh.fit.readhub.constants.ReportAction;
 import com.iuh.fit.readhub.dto.ApiResponse;
 import com.iuh.fit.readhub.dto.CommentDTO;
 import com.iuh.fit.readhub.dto.DiscussionDTO;
@@ -20,6 +21,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -72,27 +74,15 @@ public class DiscussionController {
             @RequestBody ReportActionRequest request,
             Authentication authentication) {
         try {
+            // Xử lý report action và gửi thông báo đã được chuyển vào service
             DiscussionReport report = discussionService.handleReportAction(reportId, request);
-
-            Map<String, String> data = Map.of(
-                    "type", NotificationType.REPORT_ACTION.name(),
-                    "reportId", reportId.toString(),
-                    "action", request.getAction().name(),
-                    "forumId", report.getDiscussion().getDiscussionId().toString()
-            );
-
-            fcmService.sendNotification(
-                    report.getDiscussion().getCreator().getUserId(),
-                    NotificationType.REPORT_ACTION.getTitle(),
-                    request.getAction().getNotificationMessage(),
-                    data
-            );
 
             return ResponseEntity.ok(ApiResponse.builder()
                     .message("Report action applied successfully")
                     .status(200)
                     .success(true)
                     .build());
+
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.builder()
                     .message("Error applying report action: " + e.getMessage())
