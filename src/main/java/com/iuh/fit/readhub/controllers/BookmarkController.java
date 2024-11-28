@@ -17,7 +17,7 @@ public class BookmarkController {
     private BookmarkService bookmarkService;
 
     @PostMapping
-    @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<?>> createBookmark(@RequestBody BookmarkRequest bookmarkRequest) {
         bookmarkService.createBookmark(bookmarkRequest);
         return ResponseEntity.ok(ApiResponse.builder()
@@ -42,6 +42,14 @@ public class BookmarkController {
     @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
     public ResponseEntity<ApiResponse<?>> getBookmarkByUserIdAndBookId(@PathVariable Long userId, @PathVariable Long bookId) {
         Bookmark bookmark = bookmarkService.getBookmarkByUserIdAndBookId(userId, bookId);
+        if (bookmark == null) {
+            return ResponseEntity.ok(ApiResponse.builder()
+                    .message("Chưa có bookmark")
+                    .status(200)
+                    .data(null)
+                    .success(true)
+                    .build());
+        }
         bookmark.setUser(null);
         return ResponseEntity.ok(ApiResponse.builder()
                 .message("Lấy bookmark thành công")
