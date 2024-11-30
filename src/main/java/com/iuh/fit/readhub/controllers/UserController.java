@@ -84,10 +84,18 @@ public class UserController {
                     .fullName(user.getFullName())
                     .role(user.getRole().toString())
                     .urlAvatar(user.getUrlAvatar())
-                    // Add ban information
+                    // Add all ban information
                     .forumInteractionBanned(user.getForumInteractionBanned())
                     .forumBanReason(user.getForumBanReason())
                     .forumBanExpiresAt(user.getForumBanExpiresAt())
+                    // Add these missing fields
+                    .forumCreationBanned(user.getForumCreationBanned())
+                    .forumCreationBanReason(user.getForumCreationBanReason())
+                    .forumCreationBanExpiresAt(user.getForumCreationBanExpiresAt())
+                    .forumCommentBanned(user.getForumCommentBanned())
+                    .forumCommentBanExpiresAt(user.getForumCommentBanExpiresAt())
+                    .forumJoinBanned(user.getForumJoinBanned())
+                    .forumJoinBanExpiresAt(user.getForumJoinBanExpiresAt())
                     .build();
 
             return new ResponseEntity<>(userResponse, HttpStatus.OK);
