@@ -146,7 +146,7 @@ public class DiscussionService {
 
     @Transactional
     public DiscussionDTO createForum(ForumRequest request, User creator) {
-        validateForumInteraction(creator);
+        validateCreationPermission(creator);
         if (creator.isCurrentlyBanned()) {
             String banMessage = creator.getForumCreationBanExpiresAt() != null ?
                     String.format("Bạn bị cấm tạo diễn đàn đến %s",
@@ -183,7 +183,7 @@ public class DiscussionService {
 
     @Transactional
     public DiscussionDTO joinForum(Long forumId, User user) {
-        validateForumInteraction(user);
+        validateJoinPermission(user);
         Discussion discussion = discussionRepository.findById(forumId)
                 .orElseThrow(() -> new ForumException("Diễn đàn không tồn tại"));
 
@@ -667,5 +667,49 @@ public class DiscussionService {
         String restrictions = getBanTypesString(banTypes);
         return String.format("You have been permanently banned from %s. Reason: %s",
                 restrictions, reason);
+    }
+
+    private void validateCommentPermission(User user) {
+        if (Boolean.TRUE.equals(user.getForumCommentBanned())) {
+            if (user.getForumCommentBanExpiresAt() == null) {
+                throw new RuntimeException("You have been permanently banned from commenting");
+            }
+            if (user.getForumCommentBanExpiresAt().isAfter(LocalDateTime.now())) {
+                throw new RuntimeException("You are banned from commenting until " + user.getForumCommentBanExpiresAt());
+            }
+        }
+    }
+
+    private void validateJoinPermission(User user) {
+        if (Boolean.TRUE.equals(user.getForumJoinBanned())) {
+            if (user.getForumJoinBanExpiresAt() == null) {
+                throw new RuntimeException("You have been permanently banned from joining forums");
+            }
+            if (user.getForumJoinBanExpiresAt().isAfter(LocalDateTime.now())) {
+                throw new RuntimeException("You are banned from joining forums until " + user.getForumJoinBanExpiresAt());
+            }
+        }
+    }
+
+    private void validateCreationPermission(User user) {
+        if (Boolean.TRUE.equals(user.getForumCreationBanned())) {
+            if (user.getForumCreationBanExpiresAt() == null) {
+                throw new RuntimeException("You have been permanently banned from creating forums");
+            }
+            if (user.getForumCreationBanExpiresAt().isAfter(LocalDateTime.now())) {
+                throw new RuntimeException("You are banned from creating forums until " + user.getForumCreationBanExpiresAt());
+            }
+        }
+    }
+
+    private void validateInteractionPermission(User user) {
+        if (Boolean.TRUE.equals(user.getForumInteractionBanned())) {
+            if (user.getForumBanExpiresAt() == null) {
+                throw new RuntimeException("You have been permanently banned from forum interactions");
+            }
+            if (user.getForumBanExpiresAt().isAfter(LocalDateTime.now())) {
+                throw new RuntimeException("You are banned from forum interactions until " + user.getForumBanExpiresAt());
+            }
+        }
     }
 }
