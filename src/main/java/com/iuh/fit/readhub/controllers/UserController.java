@@ -92,6 +92,7 @@ public class UserController {
                     .forumCreationBanned(user.getForumCreationBanned())
                     .forumCreationBanReason(user.getForumCreationBanReason())
                     .forumCreationBanExpiresAt(user.getForumCreationBanExpiresAt())
+                    //
                     .forumCommentBanned(user.getForumCommentBanned())
                     .forumCommentBanExpiresAt(user.getForumCommentBanExpiresAt())
                     .forumJoinBanned(user.getForumJoinBanned())

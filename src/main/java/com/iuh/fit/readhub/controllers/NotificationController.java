@@ -31,14 +31,33 @@ public class NotificationController {
         this.notificationService = notificationService;
     }
 
+    @GetMapping("/unread-notifications-count")
+    public ResponseEntity<ApiResponse<?>> getUnreadNotificationsCount(Authentication authentication) {
+        try {
+            User user = userService.getCurrentUser(authentication);
+            long count = notificationService.getUnreadCount(user.getUserId());
+
+            return ResponseEntity.ok(ApiResponse.builder()
+                    .message("Unread notifications count fetched successfully")
+                    .status(200)
+                    .data(count)
+                    .success(true)
+                    .build());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.builder()
+                    .message("Error fetching unread notifications count: " + e.getMessage())
+                    .status(400)
+                    .success(false)
+                    .build());
+        }
+    }
+
     @PostMapping("/register-device")
     public ResponseEntity<ApiResponse<?>> registerDevice(
             @RequestBody Map<String, String> request,
             Authentication authentication) {
         try {
             String fcmToken = request.get("fcmToken");
-
-            // Check if this is a duplicate request
             if (!recentRegistrations.add(fcmToken)) {
                 return ResponseEntity.ok(ApiResponse.builder()
                         .message("Device already registered")
@@ -46,7 +65,6 @@ public class NotificationController {
                         .success(true)
                         .build());
             }
-
             try {
                 User user = userService.getCurrentUser(authentication);
                 fcmService.registerDevice(user.getUserId(), fcmToken);
@@ -57,7 +75,6 @@ public class NotificationController {
                         .success(true)
                         .build());
             } finally {
-                // Remove from recent registrations after processing
                 recentRegistrations.remove(fcmToken);
             }
         } catch (Exception e) {
