@@ -1,10 +1,14 @@
 package com.iuh.fit.readhub.controllers;
 
+import com.iuh.fit.readhub.dto.BookSearchResponse;
 import com.iuh.fit.readhub.dto.ChapterDTO;
+import com.iuh.fit.readhub.dto.request.BookSearchRequest;
 import com.iuh.fit.readhub.services.BookService;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -33,6 +37,34 @@ public class BookController {
     @GetMapping("/book-content")
     public String getBookContent(@RequestParam String url, @RequestParam String urlImageCover) throws IOException {
         return bookService.getBookContent(url, urlImageCover);
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<BookSearchResponse> searchBooks(
+            @RequestParam(required = false) String title,
+            @RequestParam(required = false) String author,
+            @RequestParam(required = false) String genre,
+            @RequestParam(required = false) String language,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "32") Integer size) {
+
+        try {
+            BookSearchRequest request = BookSearchRequest.builder()
+                    .title(title)
+                    .author(author)
+                    .genre(genre)
+                    .language(language)
+                    .page(page)
+                    .size(size)
+                    .build();
+
+            BookSearchResponse response = bookService.searchBooks(request);
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
 }
