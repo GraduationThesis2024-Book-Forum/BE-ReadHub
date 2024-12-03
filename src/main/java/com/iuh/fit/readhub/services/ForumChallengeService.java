@@ -7,22 +7,28 @@ import com.iuh.fit.readhub.mapper.UserMapper;
 import com.iuh.fit.readhub.models.ChallengeMember;
 import com.iuh.fit.readhub.models.ForumChallenge;
 import com.iuh.fit.readhub.models.User;
+import com.iuh.fit.readhub.repositories.ChallengeMemberRepository;
 import com.iuh.fit.readhub.repositories.ForumChallengeRepository;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import jakarta.transaction.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class ForumChallengeService {
     private final ForumChallengeRepository challengeRepository;
     private final UserService userService;
     private final UserMapper userMapper;
+    private final ChallengeMemberRepository challengeMemberRepository;
 
     public List<ChallengeDTO> getAllChallenges() {
         return challengeRepository.findAllByOrderByCreatedAtDesc()
@@ -59,27 +65,41 @@ public class ForumChallengeService {
 
     @Transactional
     public ChallengeDTO joinChallenge(Long challengeId, Authentication authentication) {
+        log.info("Attempting to join challenge: {}", challengeId);
+
         User user = userService.getCurrentUser(authentication);
         ForumChallenge challenge = challengeRepository.findById(challengeId)
-                .orElseThrow(() -> new RuntimeException("Challenge not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Challenge not found: " + challengeId));
 
-        // Kiểm tra các điều kiện
+        log.info("Found challenge: {}, user: {}", challenge.getTitle(), user.getUserId());
+
         if (challenge.getEndDate().isBefore(LocalDateTime.now())) {
-            throw new RuntimeException("Challenge has ended");
+            throw new IllegalStateException("Challenge has ended");
         }
 
-        if (challenge.getMembers().stream()
-                .anyMatch(member -> member.getUser().getUserId().equals(user.getUserId()))) {
-            throw new RuntimeException("Already joined this challenge");
+        Optional<ChallengeMember> existingMember = challengeMemberRepository
+                .findByChallengeIdAndUserId(challengeId, user.getUserId());
+
+        if (existingMember.isPresent()) {
+            throw new IllegalStateException("User already joined this challenge");
         }
 
-        ChallengeMember member = ChallengeMember.builder()
-                .challenge(challenge)
-                .user(user)
-                .build();
+        try {
+            ChallengeMember member = ChallengeMember.builder()
+                    .challenge(challenge)
+                    .user(user)
+                    .joinedAt(LocalDateTime.now())
+                    .completed(false)
+                    .build();
 
-        challenge.getMembers().add(member);
-        return convertToDTO(challengeRepository.save(challenge));
+            member = challengeMemberRepository.save(member);
+            log.info("Saved new member: {}", member.getId());
+
+            return convertToDTO(challenge);
+        } catch (Exception e) {
+            log.error("Error joining challenge:", e);
+            throw new RuntimeException("Error joining challenge: " + e.getMessage());
+        }
     }
 
     private ChallengeDTO convertToDTO(ForumChallenge challenge) {

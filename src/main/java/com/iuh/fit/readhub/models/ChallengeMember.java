@@ -5,7 +5,9 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "challenge_members")
+@Table(name = "challenge_members", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"challenge_id", "user_id"})
+})
 @Data
 @Builder
 @NoArgsConstructor
@@ -15,20 +17,15 @@ public class ChallengeMember {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
-    @JoinColumn(name = "challenge_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "challenge_id", nullable = false)
     private ForumChallenge challenge;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     private LocalDateTime joinedAt;
     private boolean completed;
     private LocalDateTime completedAt;
-
-    @PrePersist
-    protected void onCreate() {
-        joinedAt = LocalDateTime.now();
-    }
 }
