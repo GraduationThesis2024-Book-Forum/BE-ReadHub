@@ -2,6 +2,8 @@ package com.iuh.fit.readhub.dto.request;
 
 import lombok.*;
 
+import java.util.List;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -9,8 +11,8 @@ import lombok.*;
 public class BookSearchRequest {
     private String title;
     private String author;
-    private String genre;
-    private String language;
+    private List<String> genres;
+    private List<String> languages;
     private Integer page;
     private Integer size;
 }

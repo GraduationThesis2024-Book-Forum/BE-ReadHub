@@ -43,8 +43,8 @@ public class BookController {
     public ResponseEntity<BookSearchResponse> searchBooks(
             @RequestParam(required = false) String title,
             @RequestParam(required = false) String author,
-            @RequestParam(required = false) String genre,
-            @RequestParam(required = false) String language,
+            @RequestParam(required = false) List<String> genres,
+            @RequestParam(required = false) List<String> languages,
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "32") Integer size) {
 
@@ -52,8 +52,8 @@ public class BookController {
             BookSearchRequest request = BookSearchRequest.builder()
                     .title(title)
                     .author(author)
-                    .genre(genre)
-                    .language(language)
+                    .genres(genres)
+                    .languages(languages)
                     .page(page)
                     .size(size)
                     .build();
