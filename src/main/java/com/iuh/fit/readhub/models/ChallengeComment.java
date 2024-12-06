@@ -20,20 +20,19 @@ public class ChallengeComment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
     private String content;
+    private String imageUrl;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne
     @JoinColumn(name = "user_id")
     private User user;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne
     @JoinColumn(name = "challenge_id")
     private ForumChallenge challenge;
 
-    @ElementCollection
-    @CollectionTable(name = "challenge_comment_books")
-    private List<Long> bookIds;
+    @Column(columnDefinition = "TEXT")
+    private String booksJson;
 
     private LocalDateTime createdAt;
 
