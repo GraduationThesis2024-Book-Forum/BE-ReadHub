@@ -107,13 +107,16 @@ public class BookService {
         }
 
         // Add language filter if specified
-        if (StringUtils.hasText(request.getLanguage())) {
-            params.add("languages=" + request.getLanguage().toLowerCase());
+        if (request.getLanguages() != null && !request.getLanguages().isEmpty()) {
+            params.add("languages=" + request.getLanguages().stream()
+                    .collect(Collectors.joining(",")));
         }
 
         // Add pagination
         int page = request.getPage() != null ? request.getPage() : 1;
         params.add("page=" + page);
+
+
 
         // Construct final URL
         searchUrl.append(String.join("&", params));
@@ -196,11 +199,17 @@ public class BookService {
                 .limit(pageSize)
                 .collect(Collectors.toList());
 
+        boolean hasNext= true;
+
+        if (totalPages <2) {
+            hasNext = false;
+        }
+
         return BookSearchResponse.builder()
                 .books(paginatedBooks)
                 .totalPages(totalPages)
                 .totalElements(totalElements)
-                .hasNext(response.has("next") && !response.get("next").isNull())
+                .hasNext(hasNext)
                 .build();
     }
 
@@ -210,7 +219,7 @@ public class BookService {
     private boolean filterBook(BookDTO book, BookSearchRequest request) {
         return matchesTitle(book.getTitle(), request.getTitle()) &&
                 matchesAuthor(book.getAuthors(), request.getAuthor()) &&
-                matchesGenre(book.getGenres(), request.getGenre());
+                matchesGenre(book.getGenres(), request.getGenres());
     }
 
     /**
@@ -236,9 +245,11 @@ public class BookService {
     /**
      * Checks if any of the book's genres match the search criteria
      */
-    private boolean matchesGenre(List<String> bookGenres, String searchGenre) {
-        if (!StringUtils.hasText(searchGenre)) return true;
-        String normalizedSearch = normalizeString(searchGenre);
+    private boolean matchesGenre(List<String> bookGenres, List<String> searchGenre) {
+        if (searchGenre.size()<0) return true;
+        String normalizedSearch = searchGenre.stream()
+                .map(this::normalizeString)
+                .collect(Collectors.joining(" "));
         return bookGenres.stream()
                 .map(this::normalizeString)
                 .anyMatch(genre -> genre.contains(normalizedSearch));
