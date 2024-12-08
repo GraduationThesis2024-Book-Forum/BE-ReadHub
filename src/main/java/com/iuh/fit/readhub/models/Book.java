@@ -1,47 +1,31 @@
 package com.iuh.fit.readhub.models;
 
-import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 
-import java.time.LocalDate;
-import java.util.Set;
+import com.iuh.fit.readhub.repositories.ReviewRepository;
+import jakarta.persistence.Id;
+import lombok.*;
+import org.bson.types.ObjectId;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.mongodb.core.mapping.Document;
 
-@AllArgsConstructor
+import java.util.List;
+import java.util.Map;
+
+@Document(collection = "books")
+@Data
 @NoArgsConstructor
-@Getter
-@Setter
-@Entity
-@Table(name = "Book")
+@AllArgsConstructor
 public class Book {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long bookId;
-
+    private Long id;
     private String title;
-    private String language;
-
-    private String coverImage;
-    private String link;
-    @OneToMany(mappedBy = "book")
-    private Set<BookCategory> bookCategories;
-
-
-    @OneToMany(mappedBy = "book")
-    private Set<BookAuthor> bookAuthors;
-
-    @Override
-    public String toString() {
-        return "Book{" +
-                "bookId=" + bookId +
-                ", title='" + title + '\'' +
-                ", language=" + language +
-                ", coverImage='" + coverImage + '\'' +
-                ", link='" + link + '\'' +
-                ", bookCategories=" + bookCategories +
-                ", bookAuthors=" + bookAuthors +
-                '}';
-    }
+    private List<Author> authors;
+    private Map<String, String> formats;
+    private List<String> subjects;
+    private List<String> bookshelves;
+    private List<String> languages;
+    private Boolean copyright;
+    private String mediaType;
+    private Long downloadCount;
+    private double averageRating;
 }

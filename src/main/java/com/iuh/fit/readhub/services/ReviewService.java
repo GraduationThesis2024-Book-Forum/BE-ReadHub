@@ -77,5 +77,14 @@ public class ReviewService {
     }
 
 
-
+    public double getAverageRating(Long bookId) {
+        List<Review> reviews = reviewRepository.findByBookId(bookId);
+        if (reviews.isEmpty()) {
+            return 0;
+        }
+        return reviews.stream()
+                .mapToInt(Review::getRating)
+                .average()
+                .orElse(0.0);
+    }
 }
