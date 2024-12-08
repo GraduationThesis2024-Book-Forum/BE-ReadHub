@@ -2,16 +2,13 @@ package com.iuh.fit.readhub.services;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.iuh.fit.readhub.dto.BookDTO;
 import com.iuh.fit.readhub.dto.ChallengeCommentDTO;
 import com.iuh.fit.readhub.dto.GutendexBookDTO;
 import com.iuh.fit.readhub.dto.message.ChallengeCommentMessage;
 import com.iuh.fit.readhub.mapper.UserMapper;
-import com.iuh.fit.readhub.models.Book;
 import com.iuh.fit.readhub.models.ChallengeComment;
 import com.iuh.fit.readhub.models.ForumChallenge;
 import com.iuh.fit.readhub.models.User;
-import com.iuh.fit.readhub.repositories.BookRepository;
 import com.iuh.fit.readhub.repositories.ChallengeCommentRepository;
 import com.iuh.fit.readhub.repositories.ForumChallengeRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -22,7 +19,6 @@ import org.springframework.stereotype.Service;
 import java.nio.file.AccessDeniedException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor

@@ -6,6 +6,7 @@ import com.iuh.fit.readhub.dto.request.ReviewRequest;
 import com.iuh.fit.readhub.models.Review;
 import com.iuh.fit.readhub.repositories.ReviewRepository;
 import com.iuh.fit.readhub.repositories.UserRepository;
+import com.iuh.fit.readhub.services.BookService;
 import com.iuh.fit.readhub.services.ReviewReactService;
 import com.iuh.fit.readhub.services.ReviewService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +30,9 @@ public class ReviewController {
 
     @Autowired
     private ReviewReactService reviewReactService;
+
+    @Autowired
+    private BookService bookService;
 
     @GetMapping("/book/{bookId}")
     public ResponseEntity<ApiResponse<?>> getBookReviews(
@@ -78,7 +82,11 @@ public class ReviewController {
 
 
         Review savedReview = reviewService.createReview(newReview);
+        double averageRating = reviewService.getAverageRating(request.getBookId());
+        bookService.updateAverageRating(request.getBookId(), averageRating);
+
         ReviewDTO reviewDTO = ReviewDTO.fromReview(savedReview,null);
+
         return ResponseEntity.ok(ApiResponse.builder()
                 .message("Tạo review thành công")
                 .status(200)
