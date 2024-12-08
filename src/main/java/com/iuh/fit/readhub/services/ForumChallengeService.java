@@ -1,12 +1,18 @@
 package com.iuh.fit.readhub.services;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.iuh.fit.readhub.constants.ChallengeType;
+import com.iuh.fit.readhub.dto.ChallengeCommentDTO;
 import com.iuh.fit.readhub.dto.ChallengeDTO;
+import com.iuh.fit.readhub.dto.GutendexBookDTO;
 import com.iuh.fit.readhub.dto.request.CreateChallengeRequest;
 import com.iuh.fit.readhub.mapper.UserMapper;
+import com.iuh.fit.readhub.models.ChallengeComment;
 import com.iuh.fit.readhub.models.ChallengeMember;
 import com.iuh.fit.readhub.models.ForumChallenge;
 import com.iuh.fit.readhub.models.User;
+import com.iuh.fit.readhub.repositories.ChallengeCommentRepository;
 import com.iuh.fit.readhub.repositories.ChallengeMemberRepository;
 import com.iuh.fit.readhub.repositories.ForumChallengeRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -17,6 +23,7 @@ import org.springframework.stereotype.Service;
 import jakarta.transaction.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -29,11 +36,21 @@ public class ForumChallengeService {
     private final UserService userService;
     private final UserMapper userMapper;
     private final ChallengeMemberRepository challengeMemberRepository;
+    private final ChallengeCommentRepository commentRepository;
+    private final ObjectMapper objectMapper;
 
     public List<ChallengeDTO> getAllChallenges() {
         return challengeRepository.findAllByOrderByCreatedAtDesc()
                 .stream()
                 .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    public List<ChallengeCommentDTO> getCommentsByChallengeId(Long challengeId, Authentication authentication) {
+        User currentUser = userService.getCurrentUser(authentication);
+        List<ChallengeComment> comments = commentRepository.findByChallenge_ChallengeIdOrderByCreatedAtDesc(challengeId);
+        return comments.stream()
+                .map(comment -> convertToDTO(comment, currentUser))
                 .collect(Collectors.toList());
     }
 
@@ -120,6 +137,29 @@ public class ForumChallengeService {
                 .memberCount(challenge.getMembers().size())
                 .discussionCount(challenge.getDiscussions().size())
                 .createdAt(challenge.getCreatedAt())
+                .build();
+    }
+
+    private ChallengeCommentDTO convertToDTO(ChallengeComment comment, User currentUser) {
+        List<GutendexBookDTO> books;
+        try {
+            // Convert JSON string back to list of books
+            books = objectMapper.readValue(
+                    comment.getBooksJson(),
+                    objectMapper.getTypeFactory().constructCollectionType(List.class, GutendexBookDTO.class)
+            );
+        } catch (JsonProcessingException e) {
+            books = new ArrayList<>();  // Empty list if there's an error
+        }
+
+        return ChallengeCommentDTO.builder()
+                .id(comment.getId())
+                .content(comment.getContent())
+                .imageUrl(comment.getImageUrl())
+                .user(userMapper.toDTO(comment.getUser()))
+                .books(books)
+                .createdAt(comment.getCreatedAt())
+                .isOwner(comment.getUser().equals(currentUser))
                 .build();
     }
 

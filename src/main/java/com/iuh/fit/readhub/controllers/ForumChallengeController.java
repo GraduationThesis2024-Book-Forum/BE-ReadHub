@@ -1,6 +1,7 @@
 package com.iuh.fit.readhub.controllers;
 
 import com.iuh.fit.readhub.dto.ApiResponse;
+import com.iuh.fit.readhub.dto.ChallengeCommentDTO;
 import com.iuh.fit.readhub.dto.ChallengeDTO;
 import com.iuh.fit.readhub.dto.request.CreateChallengeRequest;
 import com.iuh.fit.readhub.services.ChallengeMemberService;
@@ -41,6 +42,27 @@ public class ForumChallengeController {
         }
     }
 
+    @GetMapping("/{challengeId}/comments")
+    public ResponseEntity<ApiResponse<?>> getComments(
+            @PathVariable Long challengeId,
+            Authentication authentication
+    ) {
+        try {
+            List<ChallengeCommentDTO> comments = challengeService.getCommentsByChallengeId(challengeId, authentication);
+            return ResponseEntity.ok(ApiResponse.builder()
+                    .message("Comments fetched successfully")
+                    .status(200)
+                    .data(comments)
+                    .success(true)
+                    .build());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.builder()
+                    .message("Error fetching comments: " + e.getMessage())
+                    .status(400)
+                    .success(false)
+                    .build());
+        }
+    }
     @GetMapping("/{challengeId}/check-membership")
     public ResponseEntity<ApiResponse<?>> checkMembership(
             @PathVariable Long challengeId,
