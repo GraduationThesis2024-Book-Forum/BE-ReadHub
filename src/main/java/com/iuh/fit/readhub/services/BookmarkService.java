@@ -8,6 +8,8 @@ import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 @AllArgsConstructor
 public class BookmarkService {
@@ -34,7 +36,7 @@ public class BookmarkService {
         bookmarkRepository.save(bookmark);
     }
 
-    public Bookmark getBookmarkByUserIdAndBookId(Long userId, Long bookId) {
+    public List<Bookmark> getBookmarkByUserIdAndBookId(Long userId, Long bookId) {
         return bookmarkRepository.findByUserIdAndBookId(userId, bookId);
     }
 }

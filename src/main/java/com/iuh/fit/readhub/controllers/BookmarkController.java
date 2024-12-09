@@ -10,8 +10,10 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @Controller
-@RequestMapping("api/v1/bookmark")
+@RequestMapping("/api/v1/bookmark")
 public class BookmarkController {
     @Autowired
     private BookmarkService bookmarkService;
@@ -41,8 +43,8 @@ public class BookmarkController {
     @GetMapping("/user/{userId}/book/{bookId}")
     @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
     public ResponseEntity<ApiResponse<?>> getBookmarkByUserIdAndBookId(@PathVariable Long userId, @PathVariable Long bookId) {
-        Bookmark bookmark = bookmarkService.getBookmarkByUserIdAndBookId(userId, bookId);
-        if (bookmark == null) {
+        List<Bookmark> bookmarks = bookmarkService.getBookmarkByUserIdAndBookId(userId, bookId);
+        if (bookmarks == null) {
             return ResponseEntity.ok(ApiResponse.builder()
                     .message("Chưa có bookmark")
                     .status(200)
@@ -50,11 +52,11 @@ public class BookmarkController {
                     .success(true)
                     .build());
         }
-        bookmark.setUser(null);
+        bookmarks.forEach(bookmark -> bookmark.setUser(null));
         return ResponseEntity.ok(ApiResponse.builder()
                 .message("Lấy bookmark thành công")
                 .status(200)
-                .data(bookmark)
+                .data(bookmarks)
                 .success(true)
                 .build());
     }

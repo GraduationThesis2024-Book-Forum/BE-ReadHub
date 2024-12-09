@@ -9,7 +9,6 @@ import org.springframework.data.jpa.repository.Query;
 import java.util.List;
 
 public interface BookmarkRepository extends JpaRepository<Bookmark, Long> {
-        @Query(value = "SELECT *   " +
-            "FROM bookmark n WHERE n.user_id = ?1 AND n.book_id = ?2", nativeQuery = true)
-        Bookmark findByUserIdAndBookId(Long userId, Long bookId);
+        @Query("SELECT b FROM Bookmark b WHERE b.user.userId = ?1 AND b.bookId = ?2")
+        List<Bookmark> findByUserIdAndBookId(Long userId, Long bookId);
 }

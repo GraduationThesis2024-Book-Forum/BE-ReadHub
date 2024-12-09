@@ -20,7 +20,7 @@ import java.util.List;
 
 
 @RestController
-@RequestMapping("api/v1/note")
+@RequestMapping("/api/v1/note")
 public class NoteController {
 
     @Autowired

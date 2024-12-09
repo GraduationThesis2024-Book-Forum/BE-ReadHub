@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("api/v1/forums")
+@RequestMapping("/api/v1/forums")
 public class DiscussionController {
 
     private final DiscussionService discussionService;
