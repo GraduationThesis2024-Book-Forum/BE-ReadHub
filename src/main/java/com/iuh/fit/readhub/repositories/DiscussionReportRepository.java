@@ -42,4 +42,7 @@ public interface DiscussionReportRepository extends JpaRepository<DiscussionRepo
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT r FROM DiscussionReport r LEFT JOIN FETCH r.discussion LEFT JOIN FETCH r.reporter WHERE r.id = :id")
     Optional<DiscussionReport> findByIdWithLock(@Param("id") Long id);
+
+    List<DiscussionReport> findByDiscussionAndStatus(Discussion discussion, ReportStatus status);
+
 }

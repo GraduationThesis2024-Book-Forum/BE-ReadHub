@@ -12,6 +12,7 @@ import com.iuh.fit.readhub.exceptions.ForumException;
 import com.iuh.fit.readhub.mapper.UserMapper;
 import com.iuh.fit.readhub.models.*;
 import com.iuh.fit.readhub.repositories.*;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 @Transactional
 public class DiscussionService {
     private final DiscussionRepository discussionRepository;
@@ -365,18 +367,22 @@ public class DiscussionService {
     public DiscussionReport handleReportAction(Long reportId, ReportActionRequest request) {
         try {
             // Load report với lock
-            DiscussionReport report = discussionReportRepository.findByIdWithLock(reportId)
+            DiscussionReport mainReport = discussionReportRepository.findByIdWithLock(reportId)
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy báo cáo"));
 
-            if (report.getStatus() != ReportStatus.PENDING) {
+            if (mainReport.getStatus() != ReportStatus.PENDING) {
                 throw new RuntimeException("Report đã được xử lý");
             }
 
             // Kiểm tra và lấy thông tin discussion và creator
-            Discussion discussion = report.getDiscussion();
+            Discussion discussion = mainReport.getDiscussion();
             if (discussion == null) {
                 throw new RuntimeException("Không tìm thấy diễn đàn của báo cáo này");
             }
+
+            // Get all pending reports for this forum
+            List<DiscussionReport> relatedReports = discussionReportRepository
+                    .findByDiscussionAndStatus(discussion, ReportStatus.PENDING);
 
             User forumCreator = discussion.getCreator();
             if (forumCreator == null) {
@@ -398,6 +404,16 @@ public class DiscussionService {
             notificationData.put("action", request.getAction().name());
             notificationData.put("forumId", discussion.getDiscussionId().toString());
 
+            // Update all related reports with the same action
+            for (DiscussionReport report : relatedReports) {
+                updateReportStatus(report, request.getAction());
+                discussionReportRepository.save(report);
+
+                // Notify the reporter
+                notifyReporter(report, request.getAction(), request.getReason());
+            }
+
+            // Rest of the action handling (ban, warning, etc.) remains the same
             if (request.getBanTypes() != null) {
                 notificationData.put("noInteraction", String.valueOf(request.getBanTypes().isNoInteraction()));
                 notificationData.put("noComment", String.valueOf(request.getBanTypes().isNoComment()));
@@ -425,40 +441,32 @@ public class DiscussionService {
                 notificationMessage = request.getAction().getNotificationMessage();
             }
 
-            // Send notification before any deletion
-            fcmService.sendNotification(
-                    creatorUserId,
-                    NotificationType.REPORT_ACTION.getTitle(),
-                    notificationMessage,
-                    notificationData
-            );
-
-            // Xử lý warning hoặc ban
+            // Handle the specific action
             switch (request.getAction()) {
                 case DISMISS:
-                    report.setStatus(ReportStatus.DISMISSED);
+                    mainReport.setStatus(ReportStatus.DISMISSED);
                     break;
 
                 case WARN:
-                    report.setStatus(ReportStatus.WARNED);
+                    mainReport.setStatus(ReportStatus.WARNED);
                     handleWarn(forumCreator, request.getReason());
                     break;
 
                 case BAN_1H:
                 case BAN_3H:
                 case BAN_24H:
-                    report.setStatus(ReportStatus.BANNED);
+                    mainReport.setStatus(ReportStatus.BANNED);
                     handleTemporaryBan(forumCreator, request.getAction().getBanHours(), request.getReason(), request.getBanTypes());
                     break;
 
                 case BAN_PERMANENT:
-                    report.setStatus(ReportStatus.BANNED);
+                    mainReport.setStatus(ReportStatus.BANNED);
                     handlePermanentBan(forumCreator, request.getReason(), request.getBanTypes());
                     break;
             }
 
-            report.setResolvedAt(LocalDateTime.now());
-            DiscussionReport savedReport = discussionReportRepository.save(report);
+            mainReport.setResolvedAt(LocalDateTime.now());
+            DiscussionReport savedReport = discussionReportRepository.save(mainReport);
 
             // Xóa forum sau cùng nếu được yêu cầu
             if (request.getBanTypes() != null && request.getBanTypes().isDeleteForum()) {
@@ -468,6 +476,105 @@ public class DiscussionService {
             return savedReport;
         } catch (Exception e) {
             throw new RuntimeException("Lỗi khi xử lý báo cáo: " + e.getMessage(), e);
+        }
+    }
+
+    private void updateReportStatus(DiscussionReport report, ReportAction action) {
+        switch (action) {
+            case DISMISS:
+                report.setStatus(ReportStatus.DISMISSED);
+                break;
+            case WARN:
+                report.setStatus(ReportStatus.WARNED);
+                break;
+            case BAN_1H:
+            case BAN_3H:
+            case BAN_24H:
+            case BAN_PERMANENT:
+                report.setStatus(ReportStatus.BANNED);
+                break;
+        }
+        report.setResolvedAt(LocalDateTime.now());
+    }
+
+    private void notifyReporter(DiscussionReport report, ReportAction action, String reason) {
+        try {
+            String title;
+            String message;
+            Map<String, String> data = new HashMap<>();
+            data.put("type", NotificationType.REPORT_ACTION.name());
+            data.put("reportId", report.getId().toString());
+            data.put("action", action.name());
+            data.put("forumId", report.getDiscussion().getDiscussionId().toString());
+
+            switch (action) {
+                case DISMISS:
+                    title = "Report Update: Dismissed";
+                    message = String.format(
+                            "Your report for forum '%s' has been reviewed and dismissed by moderators.",
+                            report.getDiscussion().getForumTitle()
+                    );
+                    break;
+
+                case WARN:
+                    title = "Report Update: Warning Issued";
+                    message = String.format(
+                            "Your report for forum '%s' has been reviewed. A warning has been issued to the forum creator. Reason: %s",
+                            report.getDiscussion().getForumTitle(),
+                            reason
+                    );
+                    break;
+
+                case BAN_1H:
+                case BAN_3H:
+                case BAN_24H:
+                    title = "Report Update: Temporary Ban";
+                    message = String.format(
+                            "Your report for forum '%s' has been reviewed. The forum creator has been temporarily banned for %d hours. Reason: %s",
+                            report.getDiscussion().getForumTitle(),
+                            action.getBanHours(),
+                            reason
+                    );
+                    data.put("banHours", String.valueOf(action.getBanHours()));
+                    break;
+
+                case BAN_PERMANENT:
+                    title = "Report Update: Permanent Ban";
+                    message = String.format(
+                            "Your report for forum '%s' has been reviewed. The forum creator has been permanently banned. Reason: %s",
+                            report.getDiscussion().getForumTitle(),
+                            reason
+                    );
+                    break;
+
+                default:
+                    title = "Report Update";
+                    message = String.format(
+                            "Your report for forum '%s' has been reviewed and processed.",
+                            report.getDiscussion().getForumTitle()
+                    );
+            }
+
+            // Add common data
+            data.put("forumTitle", report.getDiscussion().getForumTitle());
+            data.put("reason", reason);
+
+            // Send notification to the reporter
+            fcmService.sendNotification(
+                    report.getReporter().getUserId(),
+                    title,
+                    message,
+                    data
+            );
+
+            // Log the notification
+            log.info("Sent report action notification to reporter ID: {} for report ID: {} with action: {}",
+                    report.getReporter().getUserId(), report.getId(), action);
+
+        } catch (Exception e) {
+            // Log error but don't throw to avoid disrupting the main flow
+            log.error("Failed to send notification to reporter ID: {} for report ID: {}. Error: {}",
+                    report.getReporter().getUserId(), report.getId(), e.getMessage(), e);
         }
     }
 
