@@ -4,8 +4,6 @@ import com.iuh.fit.readhub.dto.ApiResponse;
 import com.iuh.fit.readhub.dto.CommentReportDTO;
 import com.iuh.fit.readhub.dto.request.CommentReportActionRequest;
 import com.iuh.fit.readhub.dto.request.CommentReportRequest;
-import com.iuh.fit.readhub.dto.request.ForumReportRequest;
-import com.iuh.fit.readhub.dto.request.ReportActionRequest;
 import com.iuh.fit.readhub.models.User;
 import com.iuh.fit.readhub.services.CommentReportService;
 import com.iuh.fit.readhub.services.UserService;
