@@ -15,7 +15,8 @@ public enum NotificationType {
     BAN("Temporary Ban", "You have been banned from forum interactions for %d hours: %s"), // Add hours and reason
     WARNING("Warning", "%s"), // Takes warning message directly
     BAN_EXPIRED("Ban Expired", "Your forum interaction ban has expired"),
-    BAN_NOTIFICATION("Forum Access Restricted", "You cannot interact with forums while banned");
+    BAN_NOTIFICATION("Forum Access Restricted", "You cannot interact with forums while banned"),
+    COMMENT_REPORT("New Comment Report", "A comment has been reported");
 
     private final String title;
     private final String messageTemplate;
