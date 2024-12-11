@@ -1,6 +1,7 @@
 package com.iuh.fit.readhub.controllers;
 
 import com.iuh.fit.readhub.dto.ApiResponse;
+import com.iuh.fit.readhub.dto.UserManagementDTO;
 import com.iuh.fit.readhub.dto.UserResponse;
 import com.iuh.fit.readhub.dto.request.ChangePasswordRequest;
 import com.iuh.fit.readhub.dto.request.UserRequest;
@@ -20,6 +21,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/user")
@@ -38,19 +40,77 @@ public class UserController {
     @GetMapping
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<ApiResponse<?>> getAllUser() {
-        List<User> users = userRepository.findAll();
-        if (users.isEmpty()) {
-            return ResponseEntity.ok(ApiResponse.builder().data(users)
-                    .message("Không có người dùng nào")
+        try {
+            List<UserManagementDTO> users = userRepository.findAll().stream()
+                    .map(user -> UserManagementDTO.builder()
+                            .userId(user.getUserId())
+                            .email(user.getEmail())
+                            .username(user.getUsername())
+                            .fullName(user.getFullName())
+                            .urlAvatar(user.getUrlAvatar())
+                            .role(user.getRole())
+                            .forumInteractionBanned(user.getForumInteractionBanned())
+                            .forumBanReason(user.getForumBanReason())
+                            .forumBanExpiresAt(user.getForumBanExpiresAt())
+                            .forumCreationBanned(user.getForumCreationBanned())
+                            .forumCreationBanReason(user.getForumCreationBanReason())
+                            .forumCreationBanExpiresAt(user.getForumCreationBanExpiresAt())
+                            .forumCommentBanned(user.getForumCommentBanned())
+                            .forumCommentBanExpiresAt(user.getForumCommentBanExpiresAt())
+                            .forumJoinBanned(user.getForumJoinBanned())
+                            .forumJoinBanExpiresAt(user.getForumJoinBanExpiresAt())
+                            .build())
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(ApiResponse.builder()
+                    .data(users)
+                    .message("Lấy danh sách người dùng thành công")
                     .status(HttpStatus.OK.value())
                     .success(true)
                     .build());
+
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.builder()
+                    .message("Lỗi khi lấy danh sách người dùng: " + e.getMessage())
+                    .status(HttpStatus.BAD_REQUEST.value())
+                    .success(false)
+                    .build());
         }
-        return ResponseEntity.ok(ApiResponse.builder().data(users)
-                .message("Lấy danh sách người dùng thành công")
-                .status(HttpStatus.OK.value())
-                .success(true)
-                .build());
+    }
+
+    @PostMapping("/{userId}/unban")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    public ResponseEntity<ApiResponse<?>> unbanUser(@PathVariable Long userId) {
+        try {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+            user.setForumInteractionBanned(false);
+            user.setForumBanReason(null);
+            user.setForumBanExpiresAt(null);
+
+            user.setForumCreationBanned(false);
+            user.setForumCreationBanReason(null);
+            user.setForumCreationBanExpiresAt(null);
+
+            user.setForumCommentBanned(false);
+            user.setForumCommentBanExpiresAt(null);
+
+            user.setForumJoinBanned(false);
+            user.setForumJoinBanExpiresAt(null);
+
+            userRepository.save(user);
+            return ResponseEntity.ok(ApiResponse.builder()
+                    .message("User unbanned successfully")
+                    .status(200)
+                    .success(true)
+                    .build());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.builder()
+                    .message("Error unbanning user: " + e.getMessage())
+                    .status(400)
+                    .success(false)
+                    .build());
+        }
     }
 
     @GetMapping("/profile")
