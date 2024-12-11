@@ -45,4 +45,5 @@ public interface DiscussionReportRepository extends JpaRepository<DiscussionRepo
 
     List<DiscussionReport> findByDiscussionAndStatus(Discussion discussion, ReportStatus status);
 
+    long countByStatus(ReportStatus status);
 }
