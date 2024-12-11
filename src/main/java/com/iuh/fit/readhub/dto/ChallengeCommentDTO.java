@@ -15,4 +15,5 @@ public class ChallengeCommentDTO {
     private List<GutendexBookDTO> books;
     private LocalDateTime createdAt;
     private boolean isOwner;
+    private boolean rewardEarned;
 }
