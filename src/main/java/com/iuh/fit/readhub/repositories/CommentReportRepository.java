@@ -26,4 +26,6 @@ public interface CommentReportRepository extends JpaRepository<CommentReport, Lo
     @Modifying
     @Transactional
     void deleteByComment(Comment comment);
+
+    List<CommentReport> findByCommentAndStatus(Comment comment, ReportStatus status);
 }

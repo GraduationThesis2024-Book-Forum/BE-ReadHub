@@ -2,6 +2,7 @@ package com.iuh.fit.readhub.services;
 
 import com.iuh.fit.readhub.constants.CommentReportReason;
 import com.iuh.fit.readhub.constants.NotificationType;
+import com.iuh.fit.readhub.constants.ReportAction;
 import com.iuh.fit.readhub.constants.ReportStatus;
 import com.iuh.fit.readhub.dto.CommentReportDTO;
 import com.iuh.fit.readhub.dto.request.CommentReportActionRequest;
@@ -13,6 +14,7 @@ import com.iuh.fit.readhub.repositories.CommentReportRepository;
 import com.iuh.fit.readhub.repositories.CommentRepository;
 import com.iuh.fit.readhub.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -51,8 +54,6 @@ public class CommentReportService {
                 .build();
 
         commentReportRepository.save(report);
-
-        // Notify admins
         List<User> admins = userService.getAllAdmins();
         for (User admin : admins) {
             Map<String, String> notificationData = Map.of(
@@ -79,64 +80,136 @@ public class CommentReportService {
         }
     }
 
+    @Transactional
     public void handleReportAction(Long reportId, CommentReportActionRequest request) {
-        CommentReport report = commentReportRepository.findByIdWithLock(reportId)
+        CommentReport mainReport = commentReportRepository.findByIdWithLock(reportId)
                 .orElseThrow(() -> new RuntimeException("Report not found"));
-
-        if (report.getStatus() != ReportStatus.PENDING) {
+        if (mainReport.getStatus() != ReportStatus.PENDING) {
             throw new RuntimeException("Report has already been handled");
         }
-
-        Comment comment = report.getComment();
+        Comment comment = mainReport.getComment();
         User commentAuthor = comment.getUser();
-        String notificationMessage;
-        Map<String, String> notificationData = new HashMap<>();
-        notificationData.put("type", NotificationType.REPORT_ACTION.name());
-        notificationData.put("reportId", reportId.toString());
-        notificationData.put("action", request.getAction().name());
-        notificationData.put("commentId", comment.getCommentId().toString());
-
+        List<CommentReport> relatedReports = commentReportRepository
+                .findByCommentAndStatus(comment, ReportStatus.PENDING);
+        for (CommentReport report : relatedReports) {
+            updateReportStatus(report, request.getAction());
+            report.setResolvedAt(LocalDateTime.now());
+            report.setResolution(request.getReason());
+            commentReportRepository.save(report);
+        }
         switch (request.getAction()) {
             case DISMISS:
-                report.setStatus(ReportStatus.DISMISSED);
-                notificationMessage = "Your reported comment has been reviewed and no action was taken.";
                 break;
-
-            case BAN_1H:
-            case BAN_3H:
             case BAN_24H:
-                report.setStatus(ReportStatus.BANNED);
-                handleTemporaryBan(commentAuthor, request.getAction().getBanHours(),
-                        request.getReason(),
-                        request.getBanTypes());
-                notificationMessage = String.format("You have been banned for %d hours. Reason: %s",
-                        request.getAction().getBanHours(), request.getReason());
+                handleTemporaryBan(commentAuthor, 24, request.getReason(), request.getBanTypes());
                 break;
+            case BAN_PERMANENT:
+                handlePermanentBan(commentAuthor, request.getReason(), request.getBanTypes());
+                break;
+        }
+        if (request.getBanTypes() != null && request.getBanTypes().isDeleteComment()) {
+            commentReportRepository.deleteByComment(comment);
+            commentRepository.delete(comment);
+        }
+        for (CommentReport report : relatedReports) {
+            notifyReporter(report.getReporter(), request.getAction(), request.getReason());
+        }
+        notifyCommentAuthor(commentAuthor, request.getAction(), request.getReason(),
+                request.getBanTypes() != null && request.getBanTypes().isDeleteComment());
+    }
 
+    private void updateReportStatus(CommentReport report, ReportAction action) {
+        switch (action) {
+            case DISMISS:
+                report.setStatus(ReportStatus.DISMISSED);
+                break;
+            case BAN_24H:
             case BAN_PERMANENT:
                 report.setStatus(ReportStatus.BANNED);
-                handlePermanentBan(commentAuthor, request.getReason(), request.getBanTypes());
-                notificationMessage = "You have been permanently banned. Reason: " + request.getReason();
                 break;
-
             default:
                 throw new RuntimeException("Invalid action");
         }
-
-        if (request.getBanTypes() != null && request.getBanTypes().isDeleteComment()) {
-            commentRepository.delete(comment);
-            notificationMessage += " Your comment has been deleted.";
-        }
-
         report.setResolvedAt(LocalDateTime.now());
-        commentReportRepository.save(report);
+    }
 
-        fcmService.sendNotification(
-                commentAuthor.getUserId(),
-                "Comment Report Action",
-                notificationMessage,
-                notificationData
-        );
+    private void notifyReporter(User reporter, ReportAction action, String reason) {
+        try {
+            String title;
+            String message;
+            Map<String, String> data = new HashMap<>();
+            data.put("type", NotificationType.REPORT_ACTION.name());
+            data.put("action", action.name());
+
+            switch (action) {
+                case DISMISS:
+                    title = "Report Update: Dismissed";
+                    message = "Your report has been reviewed and dismissed by moderators.";
+                    break;
+                case BAN_24H:
+                    title = "Report Update: Action Taken";
+                    message = "Your report has been reviewed. The user has been temporarily banned. Reason: " + reason;
+                    break;
+                case BAN_PERMANENT:
+                    title = "Report Update: Action Taken";
+                    message = "Your report has been reviewed. The user has been permanently banned. Reason: " + reason;
+                    break;
+                default:
+                    title = "Report Update";
+                    message = "Your report has been processed.";
+            }
+            fcmService.sendNotification(
+                    reporter.getUserId(),
+                    title,
+                    message,
+                    data
+            );
+
+        } catch (Exception e) {
+            log.error("Failed to send notification to reporter: {}", e.getMessage());
+        }
+    }
+
+    private void notifyCommentAuthor(User author, ReportAction action, String reason, boolean isCommentDeleted) {
+        try {
+            String title = "Comment Report Action";
+            String message;
+            Map<String, String> data = new HashMap<>();
+            data.put("type", NotificationType.COMMENT_REPORT.name());
+            data.put("action", action.name());
+
+            switch (action) {
+                case DISMISS:
+                    message = "A report against your comment was reviewed and dismissed.";
+                    break;
+                case BAN_24H:
+                    message = String.format(
+                            "You have been temporarily banned for 24 hours. Reason: %s%s",
+                            reason,
+                            isCommentDeleted ? " Your comment has been deleted." : ""
+                    );
+                    break;
+                case BAN_PERMANENT:
+                    message = String.format(
+                            "You have been permanently banned. Reason: %s%s",
+                            reason,
+                            isCommentDeleted ? " Your comment has been deleted." : ""
+                    );
+                    break;
+                default:
+                    message = "Action has been taken on your comment.";
+            }
+
+            fcmService.sendNotification(
+                    author.getUserId(),
+                    title,
+                    message,
+                    data
+            );
+
+        } catch (Exception e) {
+            log.error("Failed to send notification to comment author: {}", e.getMessage());
+        }
     }
 
     public List<CommentReportDTO> getPendingReports() {

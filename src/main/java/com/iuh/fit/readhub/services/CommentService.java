@@ -6,10 +6,7 @@ import com.iuh.fit.readhub.dto.UserDTO;
 import com.iuh.fit.readhub.dto.message.CommentMessage;
 import com.iuh.fit.readhub.mapper.UserMapper;
 import com.iuh.fit.readhub.models.*;
-import com.iuh.fit.readhub.repositories.CommentDiscussionLikeRepository;
-import com.iuh.fit.readhub.repositories.CommentDiscussionReplyRepository;
-import com.iuh.fit.readhub.repositories.CommentRepository;
-import com.iuh.fit.readhub.repositories.DiscussionRepository;
+import com.iuh.fit.readhub.repositories.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -31,6 +28,7 @@ public class CommentService {
     private final CommentDiscussionLikeRepository commentDiscussionLikeRepository;
     private final CommentDiscussionReplyRepository commentDiscussionReplyRepository;
     private final DiscussionRepository discussionRepository;
+    private final CommentReportRepository commentReportRepository;
 
     @Transactional
     public CommentDTO createComment(CommentMessage message, Authentication authentication) {
@@ -182,23 +180,19 @@ public class CommentService {
         User currentUser = userService.getCurrentUser(authentication);
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new RuntimeException("Comment not found"));
+        boolean isAdmin = currentUser.getRole().equals(UserRole.ADMIN);
+        boolean isCommentCreator = comment.getUser().getUserId().equals(currentUser.getUserId());
 
-        if (!comment.getUser().getUserId().equals(currentUser.getUserId()) &&
-                !currentUser.getRole().equals("ROLE_ADMIN")) {
+        if (!isAdmin && !isCommentCreator) {
             throw new RuntimeException("You don't have permission to delete this comment");
         }
-
-        // Delete associated likes
+        commentReportRepository.deleteByComment(comment);
         commentDiscussionLikeRepository.deleteByComment(comment);
-
-        // Delete associated replies
         commentDiscussionReplyRepository.deleteByParentComment(comment);
 
-        // Delete image if exists
         if (comment.getImageUrl() != null) {
             s3Service.deleteFile(comment.getImageUrl());
         }
-
         commentRepository.delete(comment);
     }
 
