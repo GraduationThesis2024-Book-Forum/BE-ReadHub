@@ -46,6 +46,12 @@ public class ForumChallengeService {
                 .collect(Collectors.toList());
     }
 
+    public ChallengeDTO getForumById(Long challengeId) {
+        return challengeRepository.findById(challengeId)
+                .map(this::convertToDTO)
+                .orElseThrow(() -> new EntityNotFoundException("Challenge not found: " + challengeId));
+    }
+
     public List<ChallengeCommentDTO> getCommentsByChallengeId(Long challengeId, Authentication authentication) {
         User currentUser = userService.getCurrentUser(authentication);
         List<ChallengeComment> comments = commentRepository.findByChallenge_ChallengeIdOrderByCreatedAtDesc(challengeId);
@@ -141,16 +147,24 @@ public class ForumChallengeService {
     }
 
     private ChallengeCommentDTO convertToDTO(ChallengeComment comment, User currentUser) {
-        List<GutendexBookDTO> books;
-        try {
-            // Convert JSON string back to list of books
-            books = objectMapper.readValue(
-                    comment.getBooksJson(),
-                    objectMapper.getTypeFactory().constructCollectionType(List.class, GutendexBookDTO.class)
-            );
-        } catch (JsonProcessingException e) {
-            books = new ArrayList<>();  // Empty list if there's an error
+        List<GutendexBookDTO> books = new ArrayList<>();
+        if (comment.getBooksJson() != null) {
+            try {
+                books = objectMapper.readValue(
+                        comment.getBooksJson(),
+                        objectMapper.getTypeFactory().constructCollectionType(List.class, GutendexBookDTO.class)
+                );
+            } catch (JsonProcessingException e) {
+                log.error("Error parsing books JSON", e);
+            }
         }
+
+        // Lấy thông tin reward từ challenge_members
+        ChallengeMember member = challengeMemberRepository
+                .findByChallengeAndUser(comment.getChallenge(), comment.getUser())
+                .orElse(null);
+
+        boolean hasReward = member != null && member.getRewardEarned() != null && member.getRewardEarned();
 
         return ChallengeCommentDTO.builder()
                 .id(comment.getId())
@@ -160,9 +174,9 @@ public class ForumChallengeService {
                 .books(books)
                 .createdAt(comment.getCreatedAt())
                 .isOwner(comment.getUser().equals(currentUser))
+                .rewardEarned(hasReward)
                 .build();
     }
-
     private void validateChallengeRequest(CreateChallengeRequest request) {
         if (request.getStartDate().isAfter(request.getEndDate())) {
             throw new RuntimeException("Start date must be before end date");

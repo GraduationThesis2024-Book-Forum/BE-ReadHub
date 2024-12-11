@@ -28,4 +28,13 @@ public class ChallengeMember {
     private LocalDateTime joinedAt;
     private boolean completed;
     private LocalDateTime completedAt;
+
+    @Column(name = "reward_earned")
+    private Boolean rewardEarned = false;
+
+    @Column(name = "reward_type")
+    private String rewardType;
+
+    @Column(name = "reward_earned_at")
+    private LocalDateTime rewardEarnedAt;
 }

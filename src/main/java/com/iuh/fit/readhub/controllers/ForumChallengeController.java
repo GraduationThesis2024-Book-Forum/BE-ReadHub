@@ -4,8 +4,12 @@ import com.iuh.fit.readhub.dto.ApiResponse;
 import com.iuh.fit.readhub.dto.ChallengeCommentDTO;
 import com.iuh.fit.readhub.dto.ChallengeDTO;
 import com.iuh.fit.readhub.dto.request.CreateChallengeRequest;
+import com.iuh.fit.readhub.models.ChallengeMember;
+import com.iuh.fit.readhub.models.User;
+import com.iuh.fit.readhub.repositories.ChallengeMemberRepository;
 import com.iuh.fit.readhub.services.ChallengeMemberService;
 import com.iuh.fit.readhub.services.ForumChallengeService;
+import com.iuh.fit.readhub.services.UserService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +26,8 @@ import java.util.Map;
 public class ForumChallengeController {
     private final ForumChallengeService challengeService;
     private final ChallengeMemberService memberService;
+    private final UserService userService;
+    private final ChallengeMemberRepository challengeMemberRepository;
 
     @GetMapping
     public ResponseEntity<ApiResponse<?>> getAllChallenges() {
@@ -40,6 +46,39 @@ public class ForumChallengeController {
                     .success(false)
                     .build());
         }
+    }
+
+    @GetMapping("/{challengeId}")
+    public ResponseEntity<ApiResponse<?>> getChallengeById(@PathVariable Long challengeId) {
+        try {
+            ChallengeDTO challenge = challengeService.getForumById(challengeId);
+            return ResponseEntity.ok(ApiResponse.builder()
+                    .message("Challenge fetched successfully")
+                    .status(200)
+                    .data(challenge)
+                    .success(true)
+                    .build());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.builder()
+                    .message("Error fetching challenge: " + e.getMessage())
+                    .status(400)
+                    .success(false)
+                    .build());
+        }
+    }
+
+    @GetMapping("/rewards")
+    public ResponseEntity<ApiResponse<?>> getUserChallengeRewards(Authentication authentication) {
+        User currentUser = userService.getCurrentUser(authentication);
+        List<ChallengeMember> completedChallenges = challengeMemberRepository
+                .findByUser_UserIdAndRewardEarnedTrue(currentUser.getUserId());
+
+        return ResponseEntity.ok(ApiResponse.builder()
+                .message("Retrieved user's challenge rewards successfully")
+                .status(200)
+                .data(completedChallenges)
+                .success(true)
+                .build());
     }
 
     @GetMapping("/{challengeId}/comments")
