@@ -27,16 +27,11 @@ public class BookmarkService {
         bookmarkRepository.save(bookmark);
     }
 
-    public void updateBookmark(BookmarkRequest bookmarkRequest) {
-        Bookmark bookmark = new Bookmark();
-        bookmark.setBookmarkId(bookmarkRequest.getBookmarkId());
-        bookmark.setUser(userRepository.findById(bookmarkRequest.getUserId()).get());
-        bookmark.setBookId(bookmarkRequest.getBookId());
-        bookmark.setLocation(bookmarkRequest.getLocation());
-        bookmarkRepository.save(bookmark);
+    public List<Bookmark> getBookmarksByUserIdAndBookId(Long userId, Long bookId) {
+        return bookmarkRepository.findByUserIdAndBookId(userId, bookId);
     }
 
-    public List<Bookmark> getBookmarkByUserIdAndBookId(Long userId, Long bookId) {
-        return bookmarkRepository.findByUserIdAndBookId(userId, bookId);
+    public void removeBookmark(Long id) {
+        bookmarkRepository.deleteById(id);
     }
 }

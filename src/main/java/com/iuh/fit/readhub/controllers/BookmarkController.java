@@ -29,12 +29,12 @@ public class BookmarkController {
                 .build());
     }
 
-    @PutMapping
-    @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
-    public ResponseEntity<ApiResponse<?>> updateBookmark(@RequestBody BookmarkRequest bookmarkRequest) {
-        bookmarkService.updateBookmark(bookmarkRequest);
+    @DeleteMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<?>> removeBookmark(@PathVariable Long id) {
+        bookmarkService.removeBookmark(id);
         return ResponseEntity.ok(ApiResponse.builder()
-                .message("Cập nhật bookmark thành công")
+                .message("Xóa bookmark thành công")
                 .status(200)
                 .success(true)
                 .build());
@@ -42,8 +42,8 @@ public class BookmarkController {
 
     @GetMapping("/user/{userId}/book/{bookId}")
     @PreAuthorize("hasRole('ROLE_USER') or hasRole('ROLE_ADMIN')")
-    public ResponseEntity<ApiResponse<?>> getBookmarkByUserIdAndBookId(@PathVariable Long userId, @PathVariable Long bookId) {
-        List<Bookmark> bookmarks = bookmarkService.getBookmarkByUserIdAndBookId(userId, bookId);
+    public ResponseEntity<ApiResponse<?>> getBookmarksByUserIdAndBookId(@PathVariable Long userId, @PathVariable Long bookId) {
+        List<Bookmark> bookmarks = bookmarkService.getBookmarksByUserIdAndBookId(userId, bookId);
         if (bookmarks == null) {
             return ResponseEntity.ok(ApiResponse.builder()
                     .message("Chưa có bookmark")
