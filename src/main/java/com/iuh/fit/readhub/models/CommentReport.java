@@ -32,6 +32,9 @@ public class CommentReport {
 
     private String additionalInfo;
 
+    @Column(length = 500)
+    private String resolution;
+
     @Enumerated(EnumType.STRING)
     private ReportStatus status;
 
