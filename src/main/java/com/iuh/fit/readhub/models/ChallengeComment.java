@@ -20,6 +20,7 @@ public class ChallengeComment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(columnDefinition = "TEXT")
     private String content;
     private String imageUrl;
 
