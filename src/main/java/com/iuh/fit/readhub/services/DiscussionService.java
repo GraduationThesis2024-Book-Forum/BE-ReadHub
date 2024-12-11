@@ -42,11 +42,12 @@ public class DiscussionService {
     private final CommentRepository commentRepository;
     private final UserRepository userRepository;
     private final FCMService fcmService;
+    private final CommentReportRepository commentReportRepository;
 
     public DiscussionService(DiscussionRepository discussionRepository,
                              DiscussionMemberRepository discussionMemberRepository,
                              UserMapper userMapper,
-                             S3Service s3Service, DiscussionLikeRepository discussionLikeRepository, DiscussionSaveRepository discussionSaveRepository, DiscussionReportRepository discussionReportRepository, UserService userService, CommentDiscussionLikeRepository commentDiscussionLikeRepository, CommentDiscussionReplyRepository commentDiscussionReplyRepository, CommentRepository commentRepository, UserRepository userRepository, FCMService fcmService) {
+                             S3Service s3Service, DiscussionLikeRepository discussionLikeRepository, DiscussionSaveRepository discussionSaveRepository, DiscussionReportRepository discussionReportRepository, UserService userService, CommentDiscussionLikeRepository commentDiscussionLikeRepository, CommentDiscussionReplyRepository commentDiscussionReplyRepository, CommentRepository commentRepository, UserRepository userRepository, FCMService fcmService, CommentReportRepository commentReportRepository) {
         this.discussionRepository = discussionRepository;
         this.userMapper = userMapper;
         this.s3Service = s3Service;
@@ -60,6 +61,7 @@ public class DiscussionService {
         this.commentRepository = commentRepository;
         this.userRepository = userRepository;
         this.fcmService = fcmService;
+        this.commentReportRepository = commentReportRepository;
     }
 
     public DiscussionInteractionDTO toggleLike(Long forumId, User user) {
@@ -268,32 +270,39 @@ public class DiscussionService {
             Discussion forum = discussionRepository.findByIdWithLock(forumId)
                     .orElseThrow(() -> new ForumException("Not Found Forum"));
 
-            // Xóa các reports trước
+            // First delete all reports related to comments
+            if (forum.getComments() != null) {
+                for (Comment comment : new ArrayList<>(forum.getComments())) {
+                    // Delete comment reports first
+                    commentReportRepository.deleteByComment(comment);
+                    commentReportRepository.flush();
+
+                    // Then delete comment likes and replies
+                    commentDiscussionLikeRepository.deleteByComment(comment);
+                    commentDiscussionReplyRepository.deleteByParentComment(comment);
+                }
+                // After deleting all comment-related data, delete the comments themselves
+                commentRepository.deleteByDiscussion(forum);
+                commentRepository.flush();
+            }
+
+            // Delete forum reports
             discussionReportRepository.deleteByDiscussion(forum);
             discussionReportRepository.flush();
 
-            // Xóa các bảng liên quan
+            // Delete forum-related data
             discussionMemberRepository.deleteByDiscussion(forum);
             discussionLikeRepository.deleteByDiscussion(forum);
             discussionSaveRepository.deleteByDiscussion(forum);
 
-            // Xóa các comment và reply
-            if (forum.getComments() != null) {
-                for (Comment comment : new ArrayList<>(forum.getComments())) {
-                    commentDiscussionLikeRepository.deleteByComment(comment);
-                    commentDiscussionReplyRepository.deleteByParentComment(comment);
-                    commentRepository.delete(comment);
-                }
-                forum.getComments().clear();
-            }
-
-            // Clear all relationships
+            // Clear relationships
             forum.getMembers().clear();
             forum.getLikes().clear();
             forum.getSaves().clear();
             forum.setCreator(null);
+            forum.getComments().clear();
 
-            // Delete forum
+            // Finally delete the forum
             discussionRepository.delete(forum);
             discussionRepository.flush();
         } catch (Exception e) {
