@@ -13,6 +13,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -30,9 +31,22 @@ public class CommentService {
     private final DiscussionRepository discussionRepository;
     private final CommentReportRepository commentReportRepository;
 
+    private void validateCommentPermission(User user) {
+        user.checkBanExpiry();
+
+        if (Boolean.TRUE.equals(user.getForumCommentBanned())) {
+            LocalDateTime expiresAt = user.getForumCommentBanExpiresAt();
+            String message = expiresAt != null
+                    ? String.format("You are banned from commenting until %s", expiresAt)
+                    : "You are permanently banned from commenting";
+            throw new RuntimeException(message);
+        }
+    }
+
     @Transactional
     public CommentDTO createComment(CommentMessage message, Authentication authentication) {
         User currentUser = userService.getCurrentUser(authentication);
+        validateCommentPermission(currentUser);
         discussionService.validateForumInteraction(currentUser);
         Discussion discussion = discussionRepository.findById(message.getDiscussionId())
                 .orElseThrow(() -> new RuntimeException("Forum not found"));
@@ -154,6 +168,7 @@ public class CommentService {
     @Transactional
     public CommentDTO updateComment(Long commentId, String content, String imageUrl, Authentication authentication) {
         User currentUser = userService.getCurrentUser(authentication);
+        validateCommentPermission(currentUser);
         discussionService.validateForumInteraction(currentUser);
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new RuntimeException("Comment not found"));
@@ -199,6 +214,7 @@ public class CommentService {
     @Transactional
     public CommentDiscussionReplyDTO updateReply(Long replyId, String content, String imageUrl, Authentication authentication) {
         User currentUser = userService.getCurrentUser(authentication);
+        validateCommentPermission(currentUser);
         discussionService.validateForumInteraction(currentUser);
         CommentDiscussionReply reply = commentDiscussionReplyRepository.findById(replyId)
                 .orElseThrow(() -> new RuntimeException("Reply not found"));
@@ -230,8 +246,6 @@ public class CommentService {
                 !currentUser.getRole().equals("ROLE_ADMIN")) {
             throw new RuntimeException("You don't have permission to delete this reply");
         }
-
-        // Delete image if exists
         if (reply.getImageUrl() != null) {
             s3Service.deleteFile(reply.getImageUrl());
         }
@@ -249,11 +263,5 @@ public class CommentService {
         CommentDiscussionReply reply = commentDiscussionReplyRepository.findById(replyId)
                 .orElseThrow(() -> new RuntimeException("Reply not found"));
         return reply.getParentComment().getCommentId();
-    }
-
-    public CommentDTO getCommentById(Long commentId) {
-        Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new RuntimeException("Comment not found"));
-        return convertToDTO(comment, null); // Pass null as currentUser if not needed
     }
 }

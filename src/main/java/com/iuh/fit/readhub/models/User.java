@@ -99,7 +99,7 @@ public class User {
     private LocalDateTime forumJoinBanExpiresAt;
 
     @PreUpdate
-    private void checkBanExpiry() {
+    public void checkBanExpiry() {
         LocalDateTime now = LocalDateTime.now();
 
         // Check forum interaction ban
