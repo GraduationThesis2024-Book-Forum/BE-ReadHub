@@ -5,7 +5,7 @@ import lombok.*;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-class Author {
+public class Author {
     private String name;
     private Long birthYear;
     private Long deathYear;
